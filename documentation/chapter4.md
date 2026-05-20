@@ -894,4 +894,3 @@ The updated continuous beam diagram includes all of the following elements:
     <br/>
     <em>Figure 4.25a: Enhanced continuous beam diagram showing UDL load arrows pointing downward across all spans, with support moments, span labels, and mixed support types</em>
 </p>
-
