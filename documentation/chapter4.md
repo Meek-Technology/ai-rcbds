@@ -937,4 +937,89 @@ The `drawContinuousBeamDiagram()` function iterates through each span and checks
 2. **Point load spans:** Draws a single bold arrow at the exact load position within the span, with the load magnitude (kN) labelled above. The arrow position is calculated proportionally: `px = spanStart + (a / spanLength) × spanPixels`.
 
 This approach supports mixed loading scenarios where different spans on the same continuous beam may carry different load types.
+
+
+## 4.27 BS 8110 Shear Reinforcement Design (Stirrups/Links)
+
+### 4.27.1 Overview
+
+A complete shear reinforcement design module was implemented in accordance with BS 8110 Clause 3.4.5. The system now automatically designs stirrups (links) for both single-span and continuous beams based on the calculated ultimate shear force.
+
+The design process follows four key steps:
+1. Calculate the **shear stress** (v)
+2. Check against the **ultimate shear limit** (v<sub>max</sub>)
+3. Determine the **concrete shear capacity** (v<sub>c</sub>)
+4. Select the appropriate **stirrup diameter and spacing**
+
+### 4.27.2 Shear Stress
+
+The design shear stress is calculated as:
+
+v = V / (b × d)
+
+Where:
+- V = ultimate shear force (N)
+- b = beam width (mm)
+- d = effective depth (mm)
+
+### 4.27.3 Ultimate Shear Limit
+
+The shear stress must not exceed the ultimate limit:
+
+v<sub>max</sub> = min(0.8√f<sub>cu</sub>, 5.0) N/mm²
+
+If v > v<sub>max</sub>, the beam section is inadequate and must be increased.
+
+### 4.27.4 Concrete Shear Capacity (Table 3.8)
+
+The concrete shear capacity v<sub>c</sub> is calculated using:
+
+v<sub>c</sub> = 0.79 × (100A<sub>s</sub>/bd)<sup>1/3</sup> × (400/d)<sup>1/4</sup> × (f<sub>cu</sub>/25)<sup>1/3</sup> / γ<sub>m</sub>
+
+Where:
+- 100A<sub>s</sub>/bd is capped at 3.0
+- (400/d)<sup>1/4</sup> is not less than 0.67
+- f<sub>cu</sub> is capped at 40 N/mm²
+- γ<sub>m</sub> = 1.25 (partial safety factor)
+
+### 4.27.5 Shear Reinforcement Cases
+
+| Condition | Link Type | A<sub>sv</sub>/s<sub>v</sub> Required |
+|---|---|---|
+| v < 0.5v<sub>c</sub> | Nominal links | 0.4b / (0.87f<sub>yv</sub>) |
+| 0.5v<sub>c</sub> ≤ v ≤ v<sub>c</sub> + 0.4 | Minimum links | 0.4b / (0.87f<sub>yv</sub>) |
+| v > v<sub>c</sub> + 0.4 | Design links | b(v − v<sub>c</sub>) / (0.87f<sub>yv</sub>) |
+
+### 4.27.6 Stirrup Selection
+
+Two-legged stirrups are used. The system selects from standard link diameters (Y8, Y10, Y12) and calculates the required spacing:
+
+s<sub>v</sub> = A<sub>sv</sub> / (A<sub>sv</sub>/s<sub>v</sub> required)
+
+Where A<sub>sv</sub> = 2 × (π/4) × d<sub>link</sub>²
+
+The spacing is:
+- Rounded down to the nearest 25mm
+- Capped at 0.75d (BS 8110 Clause 3.4.5.5)
+- Not less than 50mm
+
+### 4.27.7 Test Validation
+
+The shear design was validated across three beam types:
+
+| Beam Type | V (kN) | v (N/mm²) | v<sub>c</sub> (N/mm²) | Link Type | Stirrups |
+|---|---|---|---|---|---|
+| Simply Supported | 60 | 0.64 | 0.56 | Minimum | Y8 @ 300mm c/c |
+| Continuous | 120 | 1.28 | 0.64 | Design | Y8 @ 250mm c/c |
+| Cantilever | 45 | 0.48 | 0.53 | Minimum | Y8 @ 300mm c/c |
+
+### 4.27.8 Implementation Files
+
+| File | Function | Purpose |
+|---|---|---|
+| `rules/beam_design.py` | `concrete_shear_capacity()` | Calculates v<sub>c</sub> per Table 3.8 |
+| `rules/beam_design.py` | `design_shear_reinforcement()` | Complete shear design with link selection |
+| `rules/beam_design.py` | `_select_links()` | Stirrup diameter and spacing selection |
+| `api/main.py` | Single-span & continuous paths | Integrates shear design into API response |
+| `api/static/script.js` | Design results section | Displays full shear breakdown in UI |
 

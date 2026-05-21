@@ -317,6 +317,24 @@ async function generate(prompt) {
                 }
             }
 
+            // ── BS 8110 Shear Reinforcement Design ──
+            if (data.shear_design) {
+                const sd = data.shear_design;
+                html += `<h4 style="margin-top:16px; opacity:0.8;">BS 8110 Shear Reinforcement Design</h4>`;
+                html += `<div class="result-item">Ultimate Shear Force (V): <strong>${sd.V_kN} kN</strong></div>`;
+                html += `<div class="result-item">Shear Stress (v = V/bd): <strong>${sd.v} N/mm\u00B2</strong></div>`;
+                html += `<div class="result-item">Ultimate Shear Limit (v<sub>max</sub>): <strong>${sd.v_max} N/mm\u00B2</strong></div>`;
+                html += `<div class="result-item">Concrete Shear Capacity (v<sub>c</sub>): <strong>${sd.vc} N/mm\u00B2</strong></div>`;
+                if (sd.link_type) {
+                    const typeLabel = sd.link_type === "design" ? "Design links" :
+                                      sd.link_type === "minimum" ? "Minimum links" : "Nominal links";
+                    html += `<div class="result-item">Link Type: <strong>${typeLabel}</strong></div>`;
+                }
+                html += `<div class="result-item">Stirrups Provided: <strong>${sd.link_description}</strong></div>`;
+                const shearColor = sd.status === "SAFE" ? "#10b981" : "#ef4444";
+                html += `<div class="result-item" style="color:${shearColor};"><strong>${sd.message}</strong></div>`;
+            }
+
             designDiv.innerHTML = html;
             designDiv.style.display = "block";
         } else if (designDiv) {

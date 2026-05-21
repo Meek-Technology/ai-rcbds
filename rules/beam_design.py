@@ -808,3 +808,212 @@ def deflection_check_with_fix(span_m, b_mm, h_mm, M_kNm, As_req, As_prov_initial
                                       fy, beam_type)
     best_reinf, options = recommend_reinforcement(As_prov)
     return result, As_prov, h, best_reinf, False
+
+
+# ──────────────────────────────────────────────
+#  BS 8110 Shear Reinforcement Design
+# ──────────────────────────────────────────────
+
+# Standard link (stirrup) bar diameters
+LINK_DIAMETERS = [8, 10, 12]
+
+
+def concrete_shear_capacity(b_mm, d_mm, As_prov, fcu):
+    """
+    Calculate concrete shear capacity vc per BS 8110 Table 3.8.
+    
+    vc = 0.79 × (100As / bd)^(1/3) × (400/d)^(1/4) / γm
+    
+    Where:
+    - 100As/bd should not exceed 3
+    - (400/d)^(1/4) should not be less than 0.67 (when d > 400mm, use 1.0 for conservative)
+    - γm = 1.25 (partial safety factor for concrete in shear)
+    - fcu factor: multiply by (fcu/25)^(1/3), but fcu should not exceed 40 N/mm²
+    
+    Returns vc in N/mm²
+    """
+    gamma_m = 1.25
+
+    # 100As/bd — capped at 3
+    rho = min(100 * As_prov / (b_mm * d_mm), 3.0)
+
+    # (400/d)^(1/4) — not less than 0.67
+    if d_mm <= 400:
+        depth_factor = (400 / d_mm) ** 0.25
+    else:
+        depth_factor = max((400 / d_mm) ** 0.25, 0.67)
+
+    # fcu factor — capped at 40 N/mm²
+    fcu_used = min(fcu, 40)
+    fcu_factor = (fcu_used / 25) ** (1 / 3)
+
+    vc = (0.79 * (rho ** (1 / 3)) * depth_factor * fcu_factor) / gamma_m
+
+    return round(vc, 4)
+
+
+def design_shear_reinforcement(V_kN, b_mm, h_mm, As_prov, fcu, fy_v=460):
+    """
+    Design shear reinforcement (stirrups/links) per BS 8110 Clause 3.4.5.
+    
+    Parameters:
+    -----------
+    V_kN    : Ultimate shear force (kN)
+    b_mm    : Beam width (mm)
+    h_mm    : Total beam depth (mm)
+    As_prov : Area of longitudinal tension steel provided (mm²)
+    fcu     : Characteristic cube strength of concrete (N/mm²)
+    fy_v    : Characteristic strength of link reinforcement (N/mm²), default 460
+    
+    Returns:
+    --------
+    dict with full shear design breakdown
+    """
+    d = effective_depth(h_mm)
+    V = V_kN * 1000  # Convert kN to N
+
+    # ── Step 1: Calculate shear stress ──
+    v = V / (b_mm * d)  # N/mm²
+
+    # ── Step 2: Check ultimate shear limit ──
+    # v must not exceed 0.8√fcu or 5 N/mm², whichever is smaller
+    v_max = min(0.8 * math.sqrt(fcu), 5.0)
+    if v > v_max:
+        return {
+            "V_kN": round(V_kN, 2),
+            "d": round(d, 2),
+            "v": round(v, 4),
+            "v_max": round(v_max, 4),
+            "vc": 0,
+            "status": "FAIL",
+            "message": f"Shear stress v = {v:.2f} N/mm² exceeds v_max = {v_max:.2f} N/mm² — increase beam section",
+            "links_required": False,
+            "link_diameter": 0,
+            "link_spacing": 0,
+            "Asv_req": 0,
+            "Asv_prov": 0,
+            "link_description": "Section inadequate — increase beam size",
+        }
+
+    # ── Step 3: Calculate concrete shear capacity ──
+    vc = concrete_shear_capacity(b_mm, d_mm=d, As_prov=As_prov, fcu=fcu)
+
+    # ── Step 4: Determine shear reinforcement requirement ──
+    # Case 1: v < 0.5vc → Minimum links (nominal)
+    # Case 2: 0.5vc ≤ v ≤ (vc + 0.4) → Minimum links
+    # Case 3: v > (vc + 0.4) → Design links required
+
+    if v < 0.5 * vc:
+        # Nominal links — very low shear
+        # Minimum links: Asv/sv >= 0.4b / (0.87 × fyv)
+        Asv_sv_min = (0.4 * b_mm) / (0.87 * fy_v)
+        link_result = _select_links(Asv_sv_min, d, b_mm)
+        return {
+            "V_kN": round(V_kN, 2),
+            "d": round(d, 2),
+            "v": round(v, 4),
+            "v_max": round(v_max, 4),
+            "vc": round(vc, 4),
+            "status": "SAFE",
+            "message": f"v = {v:.2f} < 0.5vc = {0.5*vc:.2f} N/mm² — minimum (nominal) links provided",
+            "links_required": True,
+            "link_diameter": link_result["diameter"],
+            "link_spacing": link_result["spacing"],
+            "Asv_sv_req": round(Asv_sv_min, 4),
+            "Asv_prov": round(link_result["Asv"], 2),
+            "link_description": link_result["description"],
+            "link_type": "nominal",
+        }
+
+    elif v <= (vc + 0.4):
+        # Minimum links
+        # Asv/sv >= 0.4b / (0.87 × fyv)
+        Asv_sv_min = (0.4 * b_mm) / (0.87 * fy_v)
+        link_result = _select_links(Asv_sv_min, d, b_mm)
+        return {
+            "V_kN": round(V_kN, 2),
+            "d": round(d, 2),
+            "v": round(v, 4),
+            "v_max": round(v_max, 4),
+            "vc": round(vc, 4),
+            "status": "SAFE",
+            "message": f"v = {v:.2f} ≤ vc + 0.4 = {vc+0.4:.2f} N/mm² — minimum links provided",
+            "links_required": True,
+            "link_diameter": link_result["diameter"],
+            "link_spacing": link_result["spacing"],
+            "Asv_sv_req": round(Asv_sv_min, 4),
+            "Asv_prov": round(link_result["Asv"], 2),
+            "link_description": link_result["description"],
+            "link_type": "minimum",
+        }
+
+    else:
+        # Design links required
+        # Asv/sv >= b(v - vc) / (0.87 × fyv)
+        Asv_sv_req = (b_mm * (v - vc)) / (0.87 * fy_v)
+        link_result = _select_links(Asv_sv_req, d, b_mm)
+        return {
+            "V_kN": round(V_kN, 2),
+            "d": round(d, 2),
+            "v": round(v, 4),
+            "v_max": round(v_max, 4),
+            "vc": round(vc, 4),
+            "status": "SAFE",
+            "message": f"v = {v:.2f} > vc + 0.4 = {vc+0.4:.2f} N/mm² — design links required",
+            "links_required": True,
+            "link_diameter": link_result["diameter"],
+            "link_spacing": link_result["spacing"],
+            "Asv_sv_req": round(Asv_sv_req, 4),
+            "Asv_prov": round(link_result["Asv"], 2),
+            "link_description": link_result["description"],
+            "link_type": "design",
+        }
+
+
+def _select_links(Asv_sv_required, d, b_mm):
+    """
+    Select appropriate link diameter and spacing.
+    
+    For 2-legged stirrups: Asv = 2 × π/4 × dia²
+    Spacing sv = Asv / (Asv/sv required)
+    
+    Max spacing = 0.75d (BS 8110 Clause 3.4.5.5)
+    
+    Returns dict with diameter, spacing, Asv, description
+    """
+    max_spacing = 0.75 * d
+
+    for dia in LINK_DIAMETERS:
+        # Area of 2-legged stirrup
+        Asv = 2 * (math.pi * dia ** 2) / 4
+
+        # Required spacing
+        sv = Asv / Asv_sv_required
+
+        # Round down to nearest 25mm
+        sv = int(sv / 25) * 25
+        if sv < 50:
+            continue  # Too tight, try larger diameter
+
+        # Cap at max spacing
+        sv = min(sv, int(max_spacing / 25) * 25)
+        if sv < 50:
+            sv = 50
+
+        return {
+            "diameter": dia,
+            "spacing": sv,
+            "Asv": round(Asv, 2),
+            "description": f"Y{dia} links @ {sv}mm c/c (2-legged)",
+        }
+
+    # Fallback: largest diameter at minimum spacing
+    dia = LINK_DIAMETERS[-1]
+    Asv = 2 * (math.pi * dia ** 2) / 4
+    sv = max(50, int(max_spacing / 25) * 25)
+    return {
+        "diameter": dia,
+        "spacing": sv,
+        "Asv": round(Asv, 2),
+        "description": f"Y{dia} links @ {sv}mm c/c (2-legged)",
+    }

@@ -9,7 +9,8 @@ from rules.beam_design import (
     bending_moment, recommend_reinforcement, estimate_beam_size,
     generate_diagrams, max_shear_force, design_loads, design_moment,
     design_bending_reinforcement, design_reinforcement_with_resize, effective_depth,
-    check_deflection_bs8110, deflection_check_with_fix
+    check_deflection_bs8110, deflection_check_with_fix,
+    design_shear_reinforcement
 )
 from api.report import generate_pdf
 
@@ -207,6 +208,12 @@ def predict(data: dict):
         )
         deflection_status = defl_result["status"]
 
+        # ── Shear reinforcement design ──
+        shear_reinf = design_shear_reinforcement(
+            result["max_shear"], b_mm, beam_size["depth"],
+            best_reinf["provided_area"], fck
+        )
+
         return {
             "input": params,
 
@@ -265,6 +272,8 @@ def predict(data: dict):
                 "message": defl_result["message"],
                 "fixed": False,
             },
+
+            "shear_design": shear_reinf,
 
             "reinforcement": {
                 "recommended": f"{best_reinf['bars']}Y{best_reinf['diameter']}",
@@ -363,6 +372,12 @@ def predict(data: dict):
                 p1, span, beam_type, "point_load", load_position, overhang_length
             )
 
+    # ── Step 7: Shear reinforcement design ──
+    shear_reinf = design_shear_reinforcement(
+        shear, beam_size["width"], beam_size["depth"],
+        best_reinf["provided_area"], fck
+    )
+
     return {
         "input": params,
 
@@ -411,6 +426,8 @@ def predict(data: dict):
             "message": defl_result["message"],
             "fixed": defl_fixed,
         },
+
+        "shear_design": shear_reinf,
 
         "reinforcement": {
             "recommended": f"{best_reinf['bars']}Y{best_reinf['diameter']}",
