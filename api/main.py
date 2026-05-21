@@ -509,7 +509,7 @@ def system_info():
 def version():
     return {
         "version": "2.1.0",
-        "release": "Final Year Project",
+        "release": "A Final Year Project",
         "year": 2026
     }
 
