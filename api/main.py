@@ -464,17 +464,18 @@ def check_deflection(span, depth, beam_type="simply_supported"):
 
 @app.post("/download-report")
 def download_report(data: dict):
+    """Generate a PDF results report from the full design data."""
+    try:
+        file_path = generate_pdf(data)
+        return FileResponse(file_path, filename="ai_beam_results.pdf", media_type='application/pdf')
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": f"PDF generation failed: {str(e)}"})
 
-    # reuse prediction logic
-    result = predict(data)
 
-    # If predict returned a JSONResponse (error), forward it
-    if isinstance(result, JSONResponse):
-        return result
-
-    file_path = generate_pdf(result)
-
-    return FileResponse(file_path, filename="ai_beam_report.pdf", media_type='application/pdf')
+@app.post("/download-calculation-sheet")
+def download_calculation_sheet(data: dict):
+    """Placeholder for calculation sheet PDF — to be implemented later."""
+    return JSONResponse(status_code=501, content={"error": "Calculation sheet not yet implemented."})
 
 
 @app.get("/health")

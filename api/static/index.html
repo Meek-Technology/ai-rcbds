@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Beam Design System</title>
-    <link rel="stylesheet" href="style.css?v=12">
+    <link rel="stylesheet" href="style.css?v=13">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
@@ -83,8 +83,26 @@
                 <div id="designData" style="display:none;"></div>
                 <div id="continuousData" style="display:none;"></div>
 
-                <button onclick="downloadReport()">Download PDF</button>
+                <button onclick="openDownloadModal()">Download PDF</button>
             </div>
+
+        <!-- DOWNLOAD OPTIONS MODAL -->
+        <div id="downloadModal" class="modal-overlay">
+            <div class="modal-box">
+                <div class="modal-header">
+                    <h3>📥 Download Options</h3>
+                    <span class="modal-close" onclick="closeDownloadModal()">&times;</span>
+                </div>
+
+                <p class="modal-subtitle">Choose the document you would like to download.</p>
+
+                <div class="modal-actions" style="flex-direction:column; gap:12px;">
+                    <button class="btn-confirm" onclick="downloadResults()" style="width:100%;">📄 Download Results</button>
+                    <button class="btn-confirm" onclick="downloadCalculationSheet()" style="width:100%; background:linear-gradient(135deg, #6366f1, #8b5cf6);">📋 Download Calculation Sheet</button>
+                    <button class="btn-cancel" onclick="closeDownloadModal()">Cancel</button>
+                </div>
+            </div>
+        </div>
 
             <!-- </div> -->
 
@@ -118,7 +136,7 @@
         </p>
     </div>
 
-    <script src="script.js?v=12"></script>
+    <script src="script.js?v=13"></script>
 </body>
 
 </html>

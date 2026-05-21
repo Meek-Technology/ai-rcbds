@@ -219,6 +219,9 @@ async function generate(prompt) {
             return;
         }
 
+        // Store full response for PDF downloads
+        lastDesignData = data;
+
         // ── Beam type & load type labels ──
         const typeLabels = {
             "simply_supported": "Simply Supported",
@@ -1037,23 +1040,78 @@ function drawFixedSupport(ctx, x, y) {
     }
 }
 
-async function downloadReport() {
-    const prompt = document.getElementById("prompt").value;
+// ═══════════════════════════════════════════════
+//  DOWNLOAD MODAL & PDF FUNCTIONS
+// ═══════════════════════════════════════════════
 
-    const response = await fetch("/download-report", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ prompt: prompt })
-    });
+let lastDesignData = null; // Store last API response for downloads
 
-    const blob = await response.blob();
+function openDownloadModal() {
+    document.getElementById("downloadModal").classList.add("active");
+}
 
-    const link = document.createElement("a");
-    link.href = window.URL.createObjectURL(blob);
-    link.download = "ai_beam_report.pdf";
-    link.click();
+function closeDownloadModal() {
+    document.getElementById("downloadModal").classList.remove("active");
+}
+
+async function downloadResults() {
+    closeDownloadModal();
+
+    // Build a comprehensive data payload from whatever is on screen
+    const payload = lastDesignData;
+
+    if (!payload) {
+        alert("No design results available. Please generate a design first.");
+        return;
+    }
+
+    try {
+        const response = await fetch("/download-report", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            alert("Failed to generate PDF.");
+            return;
+        }
+
+        const blob = await response.blob();
+        const link = document.createElement("a");
+        link.href = window.URL.createObjectURL(blob);
+        link.download = "ai_beam_results.pdf";
+        link.click();
+    } catch (err) {
+        console.error("Download error:", err);
+        alert("Error downloading results.");
+    }
+}
+
+async function downloadCalculationSheet() {
+    closeDownloadModal();
+
+    // Placeholder — will be implemented later
+    try {
+        const response = await fetch("/download-calculation-sheet", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(lastDesignData || {})
+        });
+
+        if (!response.ok) {
+            alert("Calculation sheet is not yet available.");
+            return;
+        }
+
+        const blob = await response.blob();
+        const link = document.createElement("a");
+        link.href = window.URL.createObjectURL(blob);
+        link.download = "ai_beam_calculation_sheet.pdf";
+        link.click();
+    } catch (err) {
+        alert("Calculation sheet is not yet available.");
+    }
 }
 
 async function checkHealth() {

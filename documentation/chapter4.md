@@ -1022,4 +1022,68 @@ The shear design was validated across three beam types:
 | `rules/beam_design.py` | `_select_links()` | Stirrup diameter and spacing selection |
 | `api/main.py` | Single-span & continuous paths | Integrates shear design into API response |
 | `api/static/script.js` | Design results section | Displays full shear breakdown in UI |
+
+
+## 4.28 PDF Download Modal System
+
+### 4.28.1 Overview
+
+The single "Download PDF" button was replaced with a modal-based download system that offers two distinct document types:
+
+1. **Download Results** — A comprehensive PDF report containing all design outputs
+2. **Download Calculation Sheet** — Reserved for future implementation (placeholder)
+
+### 4.28.2 User Interface
+
+When the user clicks "Download PDF", a modal overlay appears with the following options:
+
+| Button | Colour | Action |
+|---|---|---|
+| 📄 Download Results | Green (gradient) | Generates and downloads a full results PDF |
+| 📋 Download Calculation Sheet | Purple (gradient) | Displays "not yet available" message |
+| Cancel | Neutral outline | Closes the modal |
+
+The modal reuses the existing `.modal-overlay` / `.modal-box` CSS pattern established by the parameter confirmation modal.
+
+### 4.28.3 Data Flow
+
+The frontend stores the complete API response (`lastDesignData`) when a design is generated. When the user clicks "Download Results":
+
+1. The stored data is sent directly to `/download-report` via POST
+2. The backend generates a PDF using ReportLab
+3. The PDF is returned as a file download
+
+This eliminates the need to re-run the design calculation, ensuring the PDF matches exactly what is shown on screen.
+
+### 4.28.4 PDF Report Contents
+
+The results PDF includes all sections relevant to the beam type:
+
+| Section | Content | Applicable To |
+|---|---|---|
+| 1. Input Parameters | Beam type, load, span, supports, material grades | All |
+| 2. Beam Size | Width × depth, resize indicator | All |
+| 3. Load Breakdown | n1, n2, n3, w, p1 | All |
+| 4. Design Results | M, V, As required/provided, reinforcement | All |
+| 5. BS 8110 Bending Design | Mu, d, K, z, adequacy status | All |
+| 6. Deflection Check | Basic ratio, fs, MF, allowable vs actual | All |
+| 7. Shear Design | v, v_max, vc, link type, stirrup details | All |
+| 8. Continuous Analysis | Support moments, reactions, per-location reinforcement table | Continuous only |
+
+### 4.28.5 API Endpoints
+
+| Endpoint | Method | Purpose |
+|---|---|---|
+| `/download-report` | POST | Generates comprehensive results PDF from full design data |
+| `/download-calculation-sheet` | POST | Placeholder — returns 501 Not Implemented |
+
+### 4.28.6 Implementation Files
+
+| File | Change |
+|---|---|
+| `api/static/index.html` | Added download modal HTML with two buttons |
+| `api/static/script.js` | Added `openDownloadModal()`, `closeDownloadModal()`, `downloadResults()`, `downloadCalculationSheet()`, and `lastDesignData` storage |
+| `api/report.py` | Completely rewritten to generate a comprehensive PDF for all beam types |
+| `api/main.py` | Updated `/download-report` to accept full data directly; added `/download-calculation-sheet` placeholder |
+
 
