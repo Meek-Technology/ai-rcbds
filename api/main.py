@@ -507,7 +507,7 @@ def system_info():
 @app.get("/version")
 def version():
     return {
-        "version": "2.0.0",
+        "version": "2.1.0",
         "release": "Final Year Project",
         "year": 2026
     }
@@ -525,16 +525,5 @@ def example_input():
     }
 
 
-@app.post("/parse")
-def parse_prompt(data: dict):
-    if "prompt" not in data:
-        return {"error": "No prompt provided"}
-
-    params = extract_parameters(data["prompt"])
-    params = apply_defaults(params)
-
-    return {
-        "parsed": params
-    }
 
 app.mount("/", StaticFiles(directory="api/static", html=True), name="static")
