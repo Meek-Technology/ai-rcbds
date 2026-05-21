@@ -771,7 +771,7 @@ function drawContinuousBeamDiagram(contData, loadValue) {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
 
-    // Resize canvas for multi-span (taller to fit UDL arrows)
+    // Resize canvas for multi-span (taller to fit load arrows)
     const totalLength = contData.spans.reduce((a, b) => a + b, 0);
     canvas.width = Math.max(600, 100 + contData.spans.length * 160);
     canvas.height = 250;
@@ -787,42 +787,83 @@ function drawContinuousBeamDiagram(contData, loadValue) {
     const scale = usableW / totalLength;
     const beamEndX = marginL + totalLength * scale;
 
-    // ── Draw UDL arrows across all spans ──
-    const udlTopY = beamY - 50;
-    const arrowCount = Math.max(8, Math.floor(totalLength * 2));  // ~2 arrows per meter
-    const arrowSpacing = (beamEndX - marginL) / arrowCount;
+    // ── Draw per-span load arrows based on load type ──
+    const spanLoads = contData.span_loads || [];
+    let spanStartX = marginL;
 
-    ctx.strokeStyle = "#10b981";
-    ctx.lineWidth = 1.5;
+    for (let i = 0; i < contData.spans.length; i++) {
+        const spanPx = contData.spans[i] * scale;
+        const spanEndX = spanStartX + spanPx;
+        const spanLoad = spanLoads[i] || { type: "udl" };
 
-    // Top connecting line
-    ctx.beginPath();
-    ctx.moveTo(marginL, udlTopY);
-    ctx.lineTo(beamEndX, udlTopY);
-    ctx.stroke();
+        if (spanLoad.type === "point_load") {
+            // ── Point Load: single bold arrow at load position ──
+            const aMetres = spanLoad.a || (contData.spans[i] / 2);
+            const px = spanStartX + (aMetres / contData.spans[i]) * spanPx;
 
-    // Vertical arrows
-    for (let i = 0; i <= arrowCount; i++) {
-        const x = marginL + i * arrowSpacing;
-        ctx.beginPath();
-        ctx.moveTo(x, udlTopY);
-        ctx.lineTo(x, beamY - 2);
-        ctx.stroke();
+            ctx.strokeStyle = "#ef4444";
+            ctx.lineWidth = 3;
 
-        // Arrow head
-        ctx.beginPath();
-        ctx.moveTo(x - 3, beamY - 10);
-        ctx.lineTo(x, beamY - 2);
-        ctx.lineTo(x + 3, beamY - 10);
-        ctx.stroke();
+            // Arrow line
+            ctx.beginPath();
+            ctx.moveTo(px, beamY - 55);
+            ctx.lineTo(px, beamY - 2);
+            ctx.stroke();
+
+            // Arrow head
+            ctx.beginPath();
+            ctx.moveTo(px - 5, beamY - 12);
+            ctx.lineTo(px, beamY - 2);
+            ctx.lineTo(px + 5, beamY - 12);
+            ctx.stroke();
+
+            // Label
+            ctx.fillStyle = "#ef4444";
+            ctx.font = "bold 11px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText(`${spanLoad.P} kN`, px, beamY - 60);
+
+        } else {
+            // ── UDL: downward arrows with connecting line ──
+            const udlTopY = beamY - 50;
+            const arrowsInSpan = Math.max(3, Math.floor(contData.spans[i] * 2));
+            const arrowSpacing = spanPx / arrowsInSpan;
+
+            ctx.strokeStyle = "#10b981";
+            ctx.lineWidth = 1.5;
+
+            // Top connecting line for this span
+            ctx.beginPath();
+            ctx.moveTo(spanStartX, udlTopY);
+            ctx.lineTo(spanEndX, udlTopY);
+            ctx.stroke();
+
+            // Vertical arrows
+            for (let j = 0; j <= arrowsInSpan; j++) {
+                const x = spanStartX + j * arrowSpacing;
+                ctx.beginPath();
+                ctx.moveTo(x, udlTopY);
+                ctx.lineTo(x, beamY - 2);
+                ctx.stroke();
+
+                // Arrow head
+                ctx.beginPath();
+                ctx.moveTo(x - 3, beamY - 10);
+                ctx.lineTo(x, beamY - 2);
+                ctx.lineTo(x + 3, beamY - 10);
+                ctx.stroke();
+            }
+
+            // UDL label for this span
+            ctx.fillStyle = "#10b981";
+            ctx.font = "11px Arial";
+            ctx.textAlign = "center";
+            const wLabel = spanLoad.w ? `${spanLoad.w} kN/m` : (loadValue ? `${loadValue} kN/m` : "UDL");
+            ctx.fillText(wLabel, (spanStartX + spanEndX) / 2, udlTopY - 8);
+        }
+
+        spanStartX = spanEndX;
     }
-
-    // UDL load label
-    ctx.fillStyle = "#10b981";
-    ctx.font = "12px Arial";
-    ctx.textAlign = "center";
-    const udlLabel = loadValue ? `${loadValue} kN/m` : "UDL";
-    ctx.fillText(udlLabel, (marginL + beamEndX) / 2, udlTopY - 8);
 
     // ── Draw beam line ──
     ctx.strokeStyle = "#3b82f6";
@@ -875,15 +916,15 @@ function drawContinuousBeamDiagram(contData, loadValue) {
         ctx.lineWidth = 1;
         ctx.setLineDash([4, 4]);
         ctx.beginPath();
-        ctx.moveTo(xLabel + 5, beamY - 55);
-        ctx.lineTo(xLabel + spanPx - 5, beamY - 55);
+        ctx.moveTo(xLabel + 5, beamY - 70);
+        ctx.lineTo(xLabel + spanPx - 5, beamY - 70);
         ctx.stroke();
         ctx.setLineDash([]);
 
         // Span label
         ctx.fillStyle = "#f59e0b";
         ctx.font = "bold 12px Arial";
-        ctx.fillText(contData.spans[i] + "m", midX, beamY - 60);
+        ctx.fillText(contData.spans[i] + "m", midX, beamY - 76);
 
         xLabel += spanPx;
     }
@@ -897,7 +938,7 @@ function drawContinuousBeamDiagram(contData, loadValue) {
     for (let i = 0; i < contData.support_moments.length; i++) {
         const m = contData.support_moments[i];
         if (Math.abs(m) > 0.01) {
-            ctx.fillText("M=" + m.toFixed(1), xPos, beamY - 75);
+            ctx.fillText("M=" + m.toFixed(1), xPos, beamY - 88);
         }
         if (i < contData.spans.length) {
             xPos += contData.spans[i] * scale;

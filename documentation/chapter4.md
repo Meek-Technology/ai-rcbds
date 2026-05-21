@@ -894,3 +894,47 @@ The updated continuous beam diagram includes all of the following elements:
     <br/>
     <em>Figure 4.25a: Enhanced continuous beam diagram showing UDL load arrows pointing downward across all spans, with support moments, span labels, and mixed support types</em>
 </p>
+
+
+## 4.26 Per-Span Load Type Rendering for Continuous Beams
+
+### 4.26.1 Overview
+
+The continuous beam diagram was further enhanced to render load arrows based on the **actual load type of each span**, rather than always displaying UDL arrows across the entire beam. Each span now independently shows its correct load representation.
+
+### 4.26.2 Load Type Visual Conventions
+
+| Load Type | Colour | Visual Representation |
+|---|---|---|
+| **UDL** (Uniformly Distributed Load) | Green (#10b981) | Multiple evenly-spaced downward arrows connected by a horizontal top line, with load value in kN/m |
+| **Point Load** | Red (#ef4444) | Single bold downward arrow at the load position, with load value in kN |
+
+### 4.26.3 Data Flow
+
+The API response now includes a `span_loads` array in the `continuous` object. Each entry describes the load on one span:
+
+**UDL span:**
+```json
+{ "type": "udl", "w": 23.478 }
+```
+
+**Point load span:**
+```json
+{ "type": "point_load", "P": 50.0, "a": 3.0 }
+```
+
+Where:
+- `w` = factored UDL intensity (kN/m)
+- `P` = point load magnitude (kN)
+- `a` = distance from the left support of the span to the point load (m)
+
+### 4.26.4 Rendering Logic
+
+The `drawContinuousBeamDiagram()` function iterates through each span and checks its load type:
+
+1. **UDL spans:** Draws a per-span set of downward arrows with a connecting top line and displays the load intensity (kN/m) above each span independently.
+
+2. **Point load spans:** Draws a single bold arrow at the exact load position within the span, with the load magnitude (kN) labelled above. The arrow position is calculated proportionally: `px = spanStart + (a / spanLength) × spanPixels`.
+
+This approach supports mixed loading scenarios where different spans on the same continuous beam may carry different load types.
+

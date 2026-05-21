@@ -226,6 +226,7 @@ def predict(data: dict):
                 "n_spans": len(spans_list),
                 "support_designs": support_designs,
                 "span_designs": span_designs,
+                "span_loads": span_loads,
             },
 
             "design": {
