@@ -1045,6 +1045,14 @@ When the user clicks "Download PDF", a modal overlay appears with the following 
 
 The modal reuses the existing `.modal-overlay` / `.modal-box` CSS pattern established by the parameter confirmation modal.
 
+<p align="center">
+    <a href="images/Screenshot_2168.png">
+        <img src="images/Screenshot_2168.png" alt="PDF Modal Options" width="500" />
+    </a>
+    <br/>
+    <em>Figure 4.28a: PDF Modal Options for downloading the results and calculation sheet</em>
+</p>
+
 ### 4.28.3 Data Flow
 
 The frontend stores the complete API response (`lastDesignData`) when a design is generated. When the user clicks "Download Results":
@@ -1086,4 +1094,4 @@ The results PDF includes all sections relevant to the beam type:
 | `api/report.py` | Completely rewritten to generate a comprehensive PDF for all beam types |
 | `api/main.py` | Updated `/download-report` to accept full data directly; added `/download-calculation-sheet` placeholder |
 
-
+
