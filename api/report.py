@@ -59,10 +59,17 @@ def generate_pdf(data, filename="beam_report.pdf"):
     bt = beam_type_labels.get(inp.get("beam_type", ""), inp.get("beam_type", "N/A"))
     lt = load_type_labels.get(inp.get("load_type", ""), inp.get("load_type", "N/A"))
 
+    # Span display — multi-span for continuous, single for others
+    if data.get("continuous"):
+        spans = data["continuous"].get("spans", [])
+        span_str = " + ".join([f"{s}m" for s in spans]) + f"  ({len(spans)}-span)"
+    else:
+        span_str = f"{inp.get('span', 'N/A')} m"
+
     input_data = [
         ["Beam Type", bt],
         ["Load Type", lt],
-        ["Span", f"{inp.get('span', 'N/A')} m"],
+        ["Span", span_str],
         ["Load", f"{inp.get('load', 'N/A')} {'kN' if inp.get('load_type') == 'point_load' else 'kN/m'}"],
         ["Concrete (fcu)", f"{inp.get('fcu') or inp.get('fck', 'N/A')} N/mm²"],
         ["Steel (fy)", f"{inp.get('fy', 'N/A')} N/mm²"],
