@@ -1095,3 +1095,62 @@ The results PDF includes all sections relevant to the beam type:
 | `api/main.py` | Updated `/download-report` to accept full data directly; added `/download-calculation-sheet` placeholder |
 
 
+## 4.29 Diagram Embedding in PDF Results Report
+
+### 4.29.1 Overview
+
+The PDF results report was enhanced to include all four visual diagrams rendered on the frontend. When the user clicks "Download Results", the system captures the current state of all diagram canvases, encodes them as base64 PNG images, and sends them alongside the design data to the backend, where they are decoded and embedded into the PDF.
+
+### 4.29.2 Captured Diagrams
+
+| Canvas ID | Diagram Name | Source |
+|---|---|---|
+| `beamCanvas` | Beam Diagram | Custom HTML5 Canvas drawing (supports, loads, dimensions) |
+| `loadChart` | Load Diagram | Chart.js — load distribution along the beam |
+| `shearChart` | Shear Force Diagram | Chart.js — V(x) curve |
+| `momentChart` | Bending Moment Diagram | Chart.js — M(x) curve |
+
+### 4.29.3 Data Flow
+
+```
+Frontend Canvas → toDataURL("image/png") → base64 string
+    ↓
+payload.diagrams_base64 = { beam_diagram, load_diagram, shear_diagram, moment_diagram }
+    ↓
+POST /download-report (JSON payload with base64 images)
+    ↓
+Backend: base64.b64decode → io.BytesIO → ReportLab Image → PDF
+```
+
+### 4.29.4 Frontend Implementation
+
+In `downloadResults()`, before sending the fetch request:
+
+1. The `beamCanvas` element is captured via `canvas.toDataURL("image/png")`
+2. The three Chart.js canvases (`loadChart`, `shearChart`, `momentChart`) are captured similarly
+3. All base64 strings are attached to the payload under `diagrams_base64`
+
+### 4.29.5 Backend Implementation
+
+In `report.py`, a new Section 9 was added:
+
+1. The `diagrams_base64` dictionary is extracted from the incoming data
+2. Each base64 string is stripped of the `data:image/png;base64,` prefix
+3. The raw bytes are decoded and wrapped in a `BytesIO` buffer
+4. ReportLab's `Image` flowable is used to embed each diagram, sized to fit the A4 page width with a 0.4 aspect ratio
+5. Each diagram is labelled with its title (Beam Diagram, Load Diagram, Shear Force Diagram, Bending Moment Diagram)
+
+### 4.29.6 PDF Output
+
+The diagrams section appears as **Section 9** in the PDF, after the continuous beam analysis (if applicable) and before the footer. Each diagram is:
+- Centred on the page
+- Scaled to fit the available page width (A4 minus margins)
+- Labelled with a descriptive title
+
+### 4.29.7 Implementation Files
+
+| File | Change |
+|---|---|
+| `api/static/script.js` | Added canvas capture logic in `downloadResults()` using `toDataURL()` |
+| `api/report.py` | Added base64 decoding, `Image` import, and Section 9 diagram rendering |
+

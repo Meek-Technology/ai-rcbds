@@ -1,8 +1,12 @@
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.units import mm
+import base64
+import io
+import os
+import tempfile
 
 
 def generate_pdf(data, filename="beam_report.pdf"):
@@ -240,6 +244,46 @@ def generate_pdf(data, filename="beam_report.pdf"):
                     d.get("reinforcement", "N/A"),
                 ])
             _add_table(content, reinf_rows, header=True)
+
+    # ══════════════════════════════════════════
+    #  9. DIAGRAMS (from frontend canvases)
+    # ══════════════════════════════════════════
+    diagrams_b64 = data.get("diagrams_base64", {})
+    diagram_labels = [
+        ("beam_diagram", "Beam Diagram"),
+        ("load_diagram", "Load Diagram"),
+        ("shear_diagram", "Shear Force Diagram"),
+        ("moment_diagram", "Bending Moment Diagram"),
+    ]
+
+    has_diagrams = any(diagrams_b64.get(k) for k, _ in diagram_labels)
+    if has_diagrams:
+        content.append(Paragraph("9. Diagrams", heading2))
+
+        for key, title in diagram_labels:
+            b64_str = diagrams_b64.get(key)
+            if not b64_str:
+                continue
+
+            # Strip the data URL prefix ("data:image/png;base64,...")
+            if "," in b64_str:
+                b64_str = b64_str.split(",", 1)[1]
+
+            try:
+                img_bytes = base64.b64decode(b64_str)
+                img_buf = io.BytesIO(img_bytes)
+
+                # Calculate image dimensions to fit page width
+                page_w = A4[0] - 30 * mm  # available width
+                img = Image(img_buf, width=page_w, height=page_w * 0.4)
+                img.hAlign = "CENTER"
+
+                content.append(Paragraph(title, label_style))
+                content.append(Spacer(1, 4))
+                content.append(img)
+                content.append(Spacer(1, 10))
+            except Exception:
+                pass  # Skip if image decode fails
 
     # ══════════════════════════════════════════
     #  FOOTER

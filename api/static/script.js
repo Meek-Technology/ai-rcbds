@@ -1065,6 +1065,26 @@ async function downloadResults() {
         return;
     }
 
+    // ── Capture diagram canvases as base64 PNG ──
+    const diagrams = {};
+
+    const beamCanvas = document.getElementById("beamCanvas");
+    if (beamCanvas && beamCanvas.width > 0 && beamCanvas.height > 0) {
+        diagrams.beam_diagram = beamCanvas.toDataURL("image/png");
+    }
+
+    // Chart.js canvases
+    const chartIds = ["loadChart", "shearChart", "momentChart"];
+    const chartKeys = ["load_diagram", "shear_diagram", "moment_diagram"];
+    for (let i = 0; i < chartIds.length; i++) {
+        const c = document.getElementById(chartIds[i]);
+        if (c && c.width > 0 && c.height > 0) {
+            diagrams[chartKeys[i]] = c.toDataURL("image/png");
+        }
+    }
+
+    payload.diagrams_base64 = diagrams;
+
     try {
         const response = await fetch("/download-report", {
             method: "POST",
