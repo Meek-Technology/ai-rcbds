@@ -1137,14 +1137,16 @@ In `report.py`, a new Section 9 was added:
 1. The `diagrams_base64` dictionary is extracted from the incoming data
 2. Each base64 string is stripped of the `data:image/png;base64,` prefix
 3. The raw bytes are decoded and wrapped in a `BytesIO` buffer
-4. ReportLab's `Image` flowable is used to embed each diagram, sized to fit the A4 page width with a 0.4 aspect ratio
-5. Each diagram is labelled with its title (Beam Diagram, Load Diagram, Shear Force Diagram, Bending Moment Diagram)
+4. The image's actual pixel dimensions are read via `ImageReader.getSize()` to determine the natural aspect ratio
+5. ReportLab's `Image` flowable is used to embed each diagram, scaled to fit the A4 page width while preserving its original aspect ratio
+6. Each diagram is labelled with its title (Beam Diagram, Load Diagram, Shear Force Diagram, Bending Moment Diagram)
 
 ### 4.29.6 PDF Output
 
 The diagrams section appears as **Section 9** in the PDF, after the continuous beam analysis (if applicable) and before the footer. Each diagram is:
 - Centred on the page
-- Scaled to fit the available page width (A4 minus margins)
+- Scaled proportionally to fit the available page width (A4 minus margins)
+- Maintains its original canvas aspect ratio so that axis labels, tick numbers, and chart text remain fully readable
 - Labelled with a descriptive title
 
 ### 4.29.7 Implementation Files
