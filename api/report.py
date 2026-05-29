@@ -277,14 +277,15 @@ def generate_pdf(data, filename="beam_report.pdf"):
                 # Read actual image dimensions to preserve aspect ratio
                 from reportlab.lib.utils import ImageReader
 
-                # Add dark background to all diagrams so white/light
-                # elements (text, lines, supports) are visible on the PDF
-                pil_img = PILImage.open(img_buf).convert("RGBA")
-                bg = PILImage.new("RGBA", pil_img.size, (30, 41, 59, 255))  # #1e293b
-                bg.paste(pil_img, (0, 0), pil_img)  # composite with alpha
-                img_buf = io.BytesIO()
-                bg.convert("RGB").save(img_buf, format="PNG")
-                img_buf.seek(0)
+                # For Chart.js graphs, add dark background so white text is visible
+                # (beam_diagram already has its own drawn background)
+                if key != "beam_diagram":
+                    pil_img = PILImage.open(img_buf).convert("RGBA")
+                    bg = PILImage.new("RGBA", pil_img.size, (30, 41, 59, 255))  # #1e293b
+                    bg.paste(pil_img, (0, 0), pil_img)  # composite with alpha
+                    img_buf = io.BytesIO()
+                    bg.convert("RGB").save(img_buf, format="PNG")
+                    img_buf.seek(0)
 
                 ir = ImageReader(img_buf)
                 iw, ih = ir.getSize()  # pixel dimensions
@@ -296,8 +297,9 @@ def generate_pdf(data, filename="beam_report.pdf"):
                 img_h = ih * scale
 
                 # Cap chart diagram height so all 3 fit on one A4 page
+                # (~730pt usable height / 3 charts ≈ 195pt each after titles+spacing)
                 if key != "beam_diagram":
-                    max_chart_h = 185
+                    max_chart_h = 195
                     if img_h > max_chart_h:
                         img_h = max_chart_h
                         page_w = iw * (max_chart_h / ih)
@@ -308,7 +310,7 @@ def generate_pdf(data, filename="beam_report.pdf"):
                 content.append(Paragraph(title, label_style))
                 content.append(Spacer(1, 3))
                 content.append(img)
-                content.append(Spacer(1, 14))
+                content.append(Spacer(1, 6))
             except Exception:
                 pass  # Skip if image decode fails
 
