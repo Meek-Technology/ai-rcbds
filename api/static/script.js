@@ -1132,10 +1132,14 @@ async function downloadResults() {
         }
 
         const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
         const link = document.createElement("a");
-        link.href = window.URL.createObjectURL(blob);
+        link.href = url;
         link.download = "ai_beam_results.pdf";
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
     } catch (err) {
         console.error("Download error:", err);
         alert("Error downloading results.");

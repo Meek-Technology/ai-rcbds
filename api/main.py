@@ -490,7 +490,8 @@ def health_check():
 def system_info():
     return {
         "project": "AI Structural Beam Design System",
-        "developer": "MEEK Technology",
+        "Developed by": "MEEK Technology",
+        "Lead Developer": "Engr. Micheal Shokunbi",
         "features": [
             "AI prediction",
             "Prompt-based input",
@@ -508,7 +509,7 @@ def system_info():
 @app.get("/version")
 def version():
     return {
-        "version": "2.1.0",
+        "version": "2.2.0",
         "release": "A Final Year Project",
         "year": 2026
     }
