@@ -308,9 +308,9 @@ def generate_pdf(data, filename="beam_report.pdf"):
                 img.hAlign = "CENTER"
 
                 content.append(Paragraph(title, label_style))
-                content.append(Spacer(1, 3))
+                content.append(Spacer(1, 4))
                 content.append(img)
-                content.append(Spacer(1, 6))
+                content.append(Spacer(1, 14))
             except Exception:
                 pass  # Skip if image decode fails
 

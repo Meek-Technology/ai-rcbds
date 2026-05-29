@@ -1156,3 +1156,47 @@ The diagrams section appears as **Section 9** in the PDF, after the continuous b
 | `api/static/script.js` | Added canvas capture logic in `downloadResults()` using `toDataURL()` |
 | `api/report.py` | Added base64 decoding, `Image` import, and Section 9 diagram rendering |
 
+
+## 4.30 Beam Diagram Visual Improvements
+
+### 4.30.1 Unified Colour Scheme
+
+All beam type diagrams (simply supported, cantilever, overhang) were updated to use the same colour palette as the continuous beam diagram, replacing the previous white-only rendering.
+
+| Element | Colour | Hex Code |
+|---|---|---|
+| Beam line | Blue | `#3b82f6` |
+| Pinned support | Green | `#10b981` |
+| Roller support | Amber | `#f59e0b` |
+| Fixed support | Red | `#ef4444` |
+| Span labels | Amber (bold) | `#f59e0b` |
+| Support labels (A, B, C) | Green (bold) | `#10b981` |
+| UDL arrows & labels | Green | `#10b981` |
+
+The `drawSupport()` function now applies per-type colouring, matching the separate `drawPinnedSupport()`, `drawRollerSupport()`, and `drawFixedSupport()` functions used by the continuous beam diagram.
+
+### 4.30.2 Continuous Beam Dimension Tick Marks
+
+The span dimension lines in the continuous beam diagram were enhanced with vertical tick marks at each boundary:
+
+- **Left tick**: Drawn at the start of each span's dashed line
+- **Right tick**: Drawn at the end of each span's dashed line
+- **Tick height**: 5px above and below the dimension line centre
+
+This makes span boundaries clearly demarcated, especially where adjacent spans share a support point.
+
+### 4.30.3 PDF Chart Diagram Improvements
+
+Two improvements were made to the Chart.js diagrams embedded in the PDF results report:
+
+1. **Dark Background**: Each Chart.js diagram (load, shear, moment) is composited onto a dark background (`#1e293b`) using Pillow before embedding. This ensures the white axis labels, tick numbers, and chart text remain fully visible on the white PDF page.
+
+2. **Spacing**: Diagram spacing was increased to 14pt between charts, providing comfortable visual separation while still fitting all three on a single A4 page.
+
+### 4.30.4 Implementation Files
+
+| File | Change |
+|---|---|
+| `api/static/script.js` | Updated `drawBeamDiagram()`, `drawSupport()` with coloured elements; added vertical ticks to `drawContinuousBeamDiagram()` |
+| `api/report.py` | Added Pillow-based dark background compositing; increased chart spacing to 14pt |
+

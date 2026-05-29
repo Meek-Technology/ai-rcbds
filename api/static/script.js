@@ -581,7 +581,7 @@ function drawBeamDiagram(input) {
     const freeEndX = endX;  // End of overhang (or end of beam if no overhang)
 
     // ── Draw Beam Line ──
-    ctx.strokeStyle = "white";
+    ctx.strokeStyle = "#3b82f6";
     ctx.lineWidth = 4;
     ctx.beginPath();
     ctx.moveTo(startX, beamY);
@@ -608,34 +608,37 @@ function drawBeamDiagram(input) {
     }
 
     // ── Labels ──
-    ctx.fillStyle = "white";
-    ctx.font = "13px Arial";
+    ctx.fillStyle = "#f59e0b";
+    ctx.font = "bold 13px Arial";
+    ctx.textAlign = "center";
 
     if (oh > 0) {
         // Label span and overhang separately
         const midSpan = (supportAx + supportBx) / 2;
-        ctx.fillText(`Span: ${input.span}m`, midSpan - 25, beamY + 55);
+        ctx.fillText(`Span: ${input.span}m`, midSpan, beamY + 55);
 
         const midOH = (supportBx + freeEndX) / 2;
-        ctx.fillText(`OH: ${oh}m`, midOH - 15, beamY + 55);
+        ctx.fillText(`OH: ${oh}m`, midOH, beamY + 55);
 
         // Label supports
-        ctx.font = "11px Arial";
-        ctx.fillText("A", supportAx - 3, beamY + 45);
-        ctx.fillText("B", supportBx - 3, beamY + 45);
-        ctx.fillText("C", freeEndX - 3, beamY + 10);
+        ctx.fillStyle = "#10b981";
+        ctx.font = "bold 11px Arial";
+        ctx.fillText("A", supportAx, beamY + 45);
+        ctx.fillText("B", supportBx, beamY + 45);
+        ctx.fillText("C", freeEndX, beamY + 10);
     } else {
-        ctx.fillText(`Span: ${input.span}m`, canvas.width / 2 - 35, beamY + 55);
+        ctx.fillText(`Span: ${input.span}m`, canvas.width / 2, beamY + 55);
     }
+    ctx.textAlign = "start";
 }
 
 
 function drawSupport(ctx, x, y, type) {
-    ctx.fillStyle = "white";
-    ctx.strokeStyle = "white";
     ctx.lineWidth = 2;
 
     if (type === "roller") {
+        ctx.strokeStyle = "#f59e0b";
+        ctx.fillStyle = "transparent";
         // Triangle
         ctx.beginPath();
         ctx.moveTo(x, y);
@@ -647,22 +650,37 @@ function drawSupport(ctx, x, y, type) {
         ctx.beginPath();
         ctx.arc(x, y + 23, 5, 0, 2 * Math.PI);
         ctx.stroke();
+        // Ground line
+        ctx.beginPath();
+        ctx.moveTo(x - 14, y + 29);
+        ctx.lineTo(x + 14, y + 29);
+        ctx.stroke();
 
     } else if (type === "pinned") {
-        // Filled triangle
+        ctx.strokeStyle = "#10b981";
+        ctx.fillStyle = "transparent";
+        // Triangle
         ctx.beginPath();
         ctx.moveTo(x, y);
         ctx.lineTo(x - 10, y + 18);
         ctx.lineTo(x + 10, y + 18);
         ctx.closePath();
-        ctx.fill();
+        ctx.stroke();
         // Ground line
         ctx.beginPath();
         ctx.moveTo(x - 14, y + 18);
         ctx.lineTo(x + 14, y + 18);
         ctx.stroke();
+        // Hatching
+        for (let i = -8; i <= 8; i += 5) {
+            ctx.beginPath();
+            ctx.moveTo(x + i, y + 18);
+            ctx.lineTo(x + i - 4, y + 24);
+            ctx.stroke();
+        }
 
     } else if (type === "fixed") {
+        ctx.strokeStyle = "#ef4444";
         // Wall (vertical line with hatching)
         ctx.lineWidth = 3;
         ctx.beginPath();
@@ -670,7 +688,7 @@ function drawSupport(ctx, x, y, type) {
         ctx.lineTo(x, y + 25);
         ctx.stroke();
         // Hatching lines
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 1.5;
         for (let i = -15; i <= 20; i += 7) {
             ctx.beginPath();
             ctx.moveTo(x, y + i);
@@ -933,19 +951,35 @@ function drawContinuousBeamDiagram(contData, loadValue) {
         const midX = xLabel + spanPx / 2;
 
         // Span dimension line
+        const dimY = beamY - 70;
+        const tickH = 5; // half-height of vertical tick marks
         ctx.strokeStyle = "#94a3b8";
         ctx.lineWidth = 1;
+
+        // Left vertical tick
+        ctx.beginPath();
+        ctx.moveTo(xLabel + 2, dimY - tickH);
+        ctx.lineTo(xLabel + 2, dimY + tickH);
+        ctx.stroke();
+
+        // Dashed dimension line
         ctx.setLineDash([4, 4]);
         ctx.beginPath();
-        ctx.moveTo(xLabel + 5, beamY - 70);
-        ctx.lineTo(xLabel + spanPx - 5, beamY - 70);
+        ctx.moveTo(xLabel + 2, dimY);
+        ctx.lineTo(xLabel + spanPx - 2, dimY);
         ctx.stroke();
         ctx.setLineDash([]);
+
+        // Right vertical tick
+        ctx.beginPath();
+        ctx.moveTo(xLabel + spanPx - 2, dimY - tickH);
+        ctx.lineTo(xLabel + spanPx - 2, dimY + tickH);
+        ctx.stroke();
 
         // Span label
         ctx.fillStyle = "#f59e0b";
         ctx.font = "bold 12px Arial";
-        ctx.fillText(contData.spans[i] + "m", midX, beamY - 76);
+        ctx.fillText(contData.spans[i] + "m", midX, dimY - 8);
 
         xLabel += spanPx;
     }
