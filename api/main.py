@@ -13,6 +13,7 @@ from rules.beam_design import (
     design_shear_reinforcement
 )
 from api.report import generate_pdf
+from api.calc_sheet import generate_calc_sheet
 
 app = FastAPI()
 
@@ -474,8 +475,12 @@ def download_report(data: dict):
 
 @app.post("/download-calculation-sheet")
 def download_calculation_sheet(data: dict):
-    """Placeholder for calculation sheet PDF — to be implemented later."""
-    return JSONResponse(status_code=501, content={"error": "Calculation sheet not yet implemented."})
+    """Generate a detailed BS 8110 calculation sheet PDF."""
+    try:
+        file_path = generate_calc_sheet(data)
+        return FileResponse(file_path, filename="ai_beam_calc_sheet.pdf", media_type='application/pdf')
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": f"Calculation sheet generation failed: {str(e)}"})
 
 
 @app.get("/health")
