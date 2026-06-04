@@ -1,0 +1,180 @@
+# Test Prompts for AI Structural Design System
+
+## 1. Simply Supported Beam
+
+### UDL
+```
+Design a simply supported beam with span 6m, UDL 20kN/m, fcu 25, fy 460
+```
+
+### Point Load (mid-span)
+```
+Design a simply supported beam with span 8m, point load of 40kN at 4m, concrete grade 30, steel grade 460
+```
+
+### Point Load (off-centre)
+```
+Simply supported beam, span 6m, point load of 25kN at 2m, fcu 25, fy 460
+```
+
+### Triangular Load
+```
+Design a simply supported beam with span 5m, triangular load 15kN/m, fcu 30
+```
+
+### With Wall Load
+```
+Simply supported beam span 6m, UDL 20kN/m, fcu 25, wall height 3, wall thickness 0.15, density 20
+```
+
+---
+
+## 2. Cantilever Beam
+
+### UDL
+```
+Design a cantilever beam with span 3m, UDL 15kN/m, fcu 25, fy 460
+```
+
+### Point Load at Free End
+```
+Cantilever beam span 4m, point load of 30kN at 4m, fcu 30
+```
+
+### Short Cantilever with Heavy Load
+```
+Design a cantilever beam with span 2m, UDL 40kN/m, concrete grade 30, steel grade 500
+```
+
+---
+
+## 3. Overhang Beam
+
+### UDL only
+```
+Design an overhang beam with span 5m, overhang 2m, UDL 20kN/m, fcu 25, fy 460
+```
+
+### Point Load at Free End
+```
+A beam AB of span 6m with overhang BC of 2m, point load of 10kN at free end C
+```
+
+### Short Overhang
+```
+Overhang beam span 8m, overhang of 1.5m, UDL 25kN/m, fcu 30
+```
+
+### Long Overhang
+```
+Overhang beam span 4m, overhang 3m, UDL 15kN/m, concrete grade 25
+```
+
+---
+
+## 4. Continuous Beam — Equal Spans, Same Load
+
+### 2-span (simplest)
+```
+A 2-span continuous beam with spans 6m, 6m, UDL 20kN/m, fcu 25
+```
+
+### 3-span (equal)
+```
+A 3-span continuous beam with spans 5m, 5m, 5m, UDL 25kN/m, fcu 30
+```
+
+---
+
+## 5. Continuous Beam — Unequal Spans, Same Load
+
+### 2-span unequal
+```
+A 2-span continuous beam with spans 8m, 5m, UDL 20kN/m, fcu 25
+```
+
+### 3-span unequal
+```
+A 3-span continuous beam with spans 8m, 6m, 4m, UDL 20kN/m
+```
+
+### 4-span unequal
+```
+A 4-span continuous beam with spans 6m, 8m, 5m, 7m, UDL 15kN/m, fcu 30
+```
+
+---
+
+## 6. Continuous Beam — With Support Variations
+
+### Fixed at Start
+```
+A 3-span continuous beam with spans 6m, 5m, 4m, UDL 20kN/m, fixed at A
+```
+
+### Fixed at Both Ends
+```
+A 2-span continuous beam with spans 7m, 7m, UDL 25kN/m, fixed at A, fixed at end
+```
+
+### Custom Supports
+```
+A 3-span continuous beam with spans 6m, 5m, 4m, UDL 20kN/m, supports: fixed, pinned, roller, pinned
+```
+
+---
+
+## 7. Material Grade Variations
+
+### High-Strength Concrete
+```
+Simply supported beam span 6m, UDL 30kN/m, fcu 40, fy 500
+```
+
+### Low-Strength Concrete
+```
+Cantilever beam span 3m, UDL 10kN/m, concrete grade 20, steel grade 460
+```
+
+---
+
+## 8. Extreme / Edge Cases
+
+### Very Long Span (will likely resize beam)
+```
+Simply supported beam span 12m, UDL 30kN/m, fcu 25
+```
+
+### Very Heavy Load (will likely resize beam)
+```
+Simply supported beam span 6m, UDL 80kN/m, fcu 30
+```
+
+### Very Short Span
+```
+Cantilever beam span 1.5m, UDL 10kN/m, fcu 25
+```
+
+### 5-span Continuous
+```
+A 5-span continuous beam with spans 4m, 6m, 5m, 7m, 3m, UDL 20kN/m, fcu 25
+```
+
+---
+
+## Quick Reference — What Each Tests
+
+| Prompt Category | Tests |
+|---|---|
+| Simply Supported + UDL | Basic load diagram (flat line), symmetric SFD |
+| Simply Supported + Point | SFD with step, BMD with peak at load point |
+| Cantilever + UDL | Fixed support rendering, negative moment |
+| Cantilever + Point | Max moment at fixed end |
+| Overhang + UDL | Dual-support diagram, negative moment at support B |
+| Overhang + Point at free end | Hogging over support B |
+| Continuous (equal spans) | Symmetric support moments, uniform load diagram |
+| Continuous (unequal spans) | Asymmetric moments, load diagram same value but different span widths |
+| Continuous (fixed ends) | Zero moment at fixed ends, different SFD shape |
+| Extreme loads | Beam auto-resize, deflection fixes |
+
+> **Note**: The load diagram for continuous beams will appear as a flat horizontal line when all spans have the same UDL — this is correct. The SFD and BMD will vary across spans showing the structural behaviour.
