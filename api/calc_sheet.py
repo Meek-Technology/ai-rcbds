@@ -90,31 +90,78 @@ def generate_calc_sheet(data, filename="calc_sheet.pdf"):
     }
 
     # ══════════════════════════════════════════
-    #  1. HEADER BLOCK
+    #  1. HEADER BLOCK (3-tier professional layout)
     # ══════════════════════════════════════════
-    header_data = [
-        [
-            Paragraph("<b>AI STRUCTURAL DESIGN SYSTEM</b>", _p(10, HEADER_FG, TA_LEFT)),
-            Paragraph("<b>BEAM DESIGN CALCULATION SHEET</b>", _p(10, HEADER_FG, TA_CENTER)),
-            Paragraph("", _p(8, HEADER_FG, TA_RIGHT)),  # Page number added via footer
-        ],
-        [
-            Paragraph(f"Beam Type: <b>{bt_labels.get(beam_type, beam_type)}</b>", _p(8, HEADER_FG, TA_LEFT)),
-            Paragraph(f"Material: C{int(fcu)}/Grade {fy} | BS 8110", _p(8, HEADER_FG, TA_CENTER)),
-            Paragraph(f"Load Type: <b>{load_type.upper()}</b>", _p(8, HEADER_FG, TA_RIGHT)),
-        ],
+    pw = A4[0] - 20 * mm  # page width
+
+    ACCENT = colors.HexColor("#0e7490")   # Teal accent
+    DARK_BG = colors.HexColor("#0f172a")  # Deep navy
+    INFO_BG = colors.HexColor("#f1f5f9")  # Light grey info bar
+    INFO_BORDER = colors.HexColor("#cbd5e1")
+
+    # ── Row 1: Title Bar ──
+    row1 = [
+        Paragraph("<b>AI STRUCTURAL DESIGN SYSTEM</b>",
+                  _p(11, colors.white, TA_LEFT)),
+        "",  # merged with next cell
+        Paragraph("<b>BEAM DESIGN CALCULATION SHEET</b>",
+                  _p(11, colors.white, TA_RIGHT)),
     ]
 
-    pw = A4[0] - 20 * mm  # page width
-    ht = Table(header_data, colWidths=[pw * 0.33, pw * 0.34, pw * 0.33])
-    ht.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, -1), HEADER_BG),
-        ("BOX", (0, 0), (-1, -1), 1, colors.black),
-        ("TOPPADDING", (0, 0), (-1, -1), 4),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    # ── Row 2: Accent strip with key identifiers ──
+    bt_display = bt_labels.get(beam_type, beam_type).upper()
+    row2 = [
+        Paragraph(f"<b>{bt_display} BEAM</b>", _p(9, colors.white, TA_LEFT)),
+        Paragraph(f"BS 8110 : 1997", _p(9, colors.white, TA_CENTER)),
+        Paragraph(f"<b>{load_type.replace('_', ' ').upper()}</b>", _p(9, colors.white, TA_RIGHT)),
+    ]
+
+    # ── Row 3: Info bar with specs ──
+    span_display = ""
+    if cont:
+        spans = cont.get("spans", [])
+        span_display = " + ".join([f"{s}m" for s in spans])
+    else:
+        span_display = f"{inp.get('span', 0)}m"
+
+    row3 = [
+        Paragraph(f"Section: <b>{b} × {h} mm</b>", _p(8, colors.HexColor("#334155"), TA_LEFT)),
+        Paragraph(f"Concrete: <b>C{int(fcu)}</b>  |  Steel: <b>Grade {fy}</b>",
+                  _p(8, colors.HexColor("#334155"), TA_CENTER)),
+        Paragraph(f"Span: <b>{span_display}</b>", _p(8, colors.HexColor("#334155"), TA_RIGHT)),
+    ]
+
+    # Build header table
+    header_table = Table(
+        [row1, row2, row3],
+        colWidths=[pw * 0.40, pw * 0.20, pw * 0.40],
+    )
+    header_table.setStyle(TableStyle([
+        # Row 1: Deep navy title
+        ("BACKGROUND", (0, 0), (-1, 0), DARK_BG),
+        ("TOPPADDING", (0, 0), (-1, 0), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
+        ("LEFTPADDING", (0, 0), (-1, 0), 10),
+        ("RIGHTPADDING", (0, 0), (-1, 0), 10),
+        # Row 2: Teal accent
+        ("BACKGROUND", (0, 1), (-1, 1), ACCENT),
+        ("TOPPADDING", (0, 1), (-1, 1), 4),
+        ("BOTTOMPADDING", (0, 1), (-1, 1), 4),
+        ("LEFTPADDING", (0, 1), (-1, 1), 10),
+        ("RIGHTPADDING", (0, 1), (-1, 1), 10),
+        # Row 3: Light info bar
+        ("BACKGROUND", (0, 2), (-1, 2), INFO_BG),
+        ("TOPPADDING", (0, 2), (-1, 2), 5),
+        ("BOTTOMPADDING", (0, 2), (-1, 2), 5),
+        ("LEFTPADDING", (0, 2), (-1, 2), 10),
+        ("RIGHTPADDING", (0, 2), (-1, 2), 10),
+        ("LINEBELOW", (0, 2), (-1, 2), 1.5, INFO_BORDER),
+        # Outer box
+        ("BOX", (0, 0), (-1, -1), 1.2, DARK_BG),
     ]))
-    content.append(ht)
-    content.append(Spacer(1, 4))
+
+    content.append(header_table)
+    content.append(Spacer(1, 6))
 
     # ══════════════════════════════════════════
     #  2. BEAM GEOMETRY & SPANS
