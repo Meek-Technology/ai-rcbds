@@ -301,10 +301,10 @@ async function generate(prompt) {
             const statusColor = data.design.adequate ? "#10b981" : "#ef4444";
             html += `<div class="result-item" style="color:${statusColor};"><strong>${data.design.message}</strong></div>`;
 
-            // ── BS 8110 Deflection Check (Table 3.9) ──
+            // ── BS 8110 Deflection Check ──
             if (typeof defl === "object") {
-                html += `<h4 style="margin-top:16px; opacity:0.8;">BS 8110 Deflection Check (Table 3.9)</h4>`;
-                html += `<div class="result-item">Basic span/d ratio (Table 3.9): <strong>${defl.basic_ratio}</strong></div>`;
+                html += `<h4 style="margin-top:16px; opacity:0.8;">BS 8110 Deflection Check</h4>`;
+                html += `<div class="result-item">Basic span/d ratio: <strong>${defl.basic_ratio}</strong></div>`;
                 html += `<div class="result-item">Service Stress f<sub>s</sub>: <strong>${defl.fs} N/mm\u00B2</strong></div>`;
                 html += `<div class="result-item">Modification Factor (MF): <strong>${defl.MF}</strong>`;
                 if (defl.MF_uncapped > 2.0) {

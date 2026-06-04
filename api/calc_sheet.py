@@ -223,9 +223,11 @@ def generate_calc_sheet(data, filename="calc_sheet.pdf"):
                 img = Image(img_buf, width=pw_img, height=img_h)
                 img.hAlign = "CENTER"
 
-                content.append(Paragraph(f"<i>{title}</i>", _p(7, colors.HexColor("#64748b"), TA_CENTER)))
-                content.append(img)
-                content.append(Spacer(1, 4))
+                content.append(KeepTogether([
+                    Paragraph(f"<i>{title}</i>", _p(7, colors.HexColor("#64748b"), TA_CENTER)),
+                    img,
+                ]))
+                content.append(Spacer(1, 16))
             except Exception:
                 pass
 
@@ -274,7 +276,7 @@ def generate_calc_sheet(data, filename="calc_sheet.pdf"):
     # ══════════════════════════════════════════
     #  7. DEFLECTION CHECK TABLE
     # ══════════════════════════════════════════
-    content.append(Paragraph("DEFLECTION CHECK (BS 8110 Table 3.9)", section_s))
+    content.append(Paragraph("DEFLECTION CHECK (BS 8110)", section_s))
 
     defl_status = defl.get("status", "N/A")
     is_pass = defl_status == "SAFE"

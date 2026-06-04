@@ -158,7 +158,7 @@ def generate_pdf(data, filename="beam_report.pdf"):
     # ══════════════════════════════════════════
     defl = data.get("deflection", {})
     if isinstance(defl, dict) and defl.get("status"):
-        content.append(Paragraph("6. BS 8110 Deflection Check (Table 3.9)", heading2))
+        content.append(Paragraph("6. BS 8110 Deflection Check", heading2))
 
         defl_data = [
             ["Basic span/d ratio", str(defl.get("basic_ratio", "N/A"))],
