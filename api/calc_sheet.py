@@ -212,8 +212,8 @@ def generate_calc_sheet(data, filename="calc_sheet.pdf"):
 
                 scale = pw / iw
                 img_h = ih * scale
-                # Cap height: beam diagram smaller, chart diagrams larger
-                max_h = 100 if key == "beam_diagram" else 185
+                # Cap height: beam diagram moderate, chart diagrams larger
+                max_h = 150 if key == "beam_diagram" else 185
                 if img_h > max_h:
                     img_h = max_h
                     pw_img = iw * (max_h / ih)
