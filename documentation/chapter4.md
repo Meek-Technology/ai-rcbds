@@ -1200,3 +1200,71 @@ Two improvements were made to the Chart.js diagrams embedded in the PDF results 
 | `api/static/script.js` | Updated `drawBeamDiagram()`, `drawSupport()` with coloured elements; added vertical ticks to `drawContinuousBeamDiagram()` |
 | `api/report.py` | Added Pillow-based dark background compositing; increased chart spacing to 14pt |
 
+
+## 4.31 Beam Design Calculation Sheet (Download Calculation Sheet)
+
+### 4.31.1 Overview
+
+A comprehensive **Beam Design Calculation Sheet** PDF was implemented, modelled after professional structural engineering software output (e.g., Orion Building Design System). When the user clicks **"Download Calculation Sheet"** from the download modal, the system generates a detailed, multi-section PDF containing all BS 8110 design calculations, embedded diagrams, and a reinforcement schedule.
+
+This replaces the previous `501 Not Implemented` placeholder on the `/download-calculation-sheet` endpoint.
+
+### 4.31.2 PDF Layout Structure
+
+The calculation sheet contains 8 sections:
+
+| Section | Content |
+|---|---|
+| 1. Header | System name, beam type, material grades (C_fcu_/Grade fy), load type |
+| 2. Beam Geometry | Beam size (b × h), span(s), support types, material properties |
+| 3. Load Breakdown | n1 (slab load), n2 (self-weight), n3 (wall load), p1 (point load), w (total UDL) |
+| 4. Diagrams | Beam diagram, Load diagram, Shear Force Diagram, Bending Moment Diagram |
+| 5. Bending Design | Full BS 8110 bending design — M, Mu, d, K, K', z, As_req, As_prov, bars |
+| 6. Shear Design | V, v, v_max, v_c, link type, stirrups description, status |
+| 7. Deflection Check | Basic span/d, fs, MF, allowable vs actual span/d, pass/fail |
+| 8. Reinforcement Schedule | Per-location bar schedule with As_req vs As_prov and OK/FAIL status |
+
+### 4.31.3 Beam Type Support
+
+| Beam Type | Bending Table | Reinforcement Schedule |
+|---|---|---|
+| Simply Supported | Single-section table (Parameter → Symbol → Value → Unit) | Main bars (bottom) + nominal top bars |
+| Cantilever | Same single-section format | Same |
+| Overhang | Same single-section format | Same |
+| Continuous | **Per-location tables**: Top Edge (hogging at supports) + Bottom Edge (sagging at spans) + Support Moments & Reactions summary | Per-location schedule with top/bottom bars at each support/span |
+
+### 4.31.4 Data Flow
+
+```
+Frontend: Generate Design → lastDesignData stored
+    ↓
+User clicks "Download Calculation Sheet"
+    ↓
+downloadCalculationSheet() captures canvas diagrams as base64 PNG
+    ↓
+POST /download-calculation-sheet (full design data + diagrams_base64)
+    ↓
+api/calc_sheet.py → generate_calc_sheet(data) → ReportLab PDF
+    ↓
+FileResponse → browser downloads "ai_beam_calc_sheet.pdf"
+```
+
+### 4.31.5 Visual Design
+
+The calculation sheet uses a professional colour palette:
+- **Header**: Dark navy background (`#1e3a5f`) with white text
+- **Section headers**: Slate grey background (`#cdd5e0`) with bold text
+- **Row labels**: Light grey background (`#e8ecf1`) for parameter names
+- **Grid**: Subtle grey borders (`#94a3b8`)
+- **Pass/Fail**: Green (`#15803d`) for OK, red (`#dc2626`) for FAIL
+- **Chart diagrams**: Dark background compositing (`#1e293b`) for readable white chart text
+
+### 4.31.6 Implementation Files
+
+| File | Change |
+|---|---|
+| `api/calc_sheet.py` | **New file** — Complete calculation sheet PDF generator with 8 sections |
+| `api/main.py` | Updated `/download-calculation-sheet` endpoint; added `generate_calc_sheet` import |
+| `api/static/script.js` | Updated `downloadCalculationSheet()` to send full data payload with diagram captures and proper DOM-based file download |
+| `api/static/index.html` | Cache bust to v17 |
+
