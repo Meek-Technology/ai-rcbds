@@ -112,8 +112,10 @@ def generate_calc_sheet(data, filename="calc_sheet.pdf"):
         ("BOX", (0, 0), (-1, -1), 1, colors.black),
         ("LINEBELOW", (0, 0), (-1, 0), 0.75, colors.HexColor("#93c5fd")),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING", (0, 0), (-1, -1), 6),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, 0), 12),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 12),
+        ("TOPPADDING", (0, 1), (-1, 1), 8),
+        ("BOTTOMPADDING", (0, 1), (-1, 1), 8),
     ]))
     content.append(ht)
     content.append(Spacer(1, 4))
