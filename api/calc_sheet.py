@@ -94,7 +94,7 @@ def generate_calc_sheet(data, filename="calc_sheet.pdf"):
     # ══════════════════════════════════════════
     header_data = [
         [
-            Paragraph("<b>AI STRUCTURAL BEAM DESIGN SYSTEM</b>", _p(10, HEADER_FG, TA_LEFT)),
+            Paragraph("<b>AI STRUCTURAL DESIGN SYSTEM</b>", _p(10, HEADER_FG, TA_LEFT)),
             Paragraph("", _p(10, HEADER_FG, TA_CENTER)),
             Paragraph("<b>BEAM DESIGN CALCULATION SHEET</b>", _p(10, HEADER_FG, TA_RIGHT)),
         ],
@@ -106,7 +106,7 @@ def generate_calc_sheet(data, filename="calc_sheet.pdf"):
     ]
 
     pw = A4[0] - 20 * mm  # page width
-    ht = Table(header_data, colWidths=[pw * 0.38, pw * 0.24, pw * 0.38])
+    ht = Table(header_data, colWidths=[pw * 0.32, pw * 0.36, pw * 0.32])
     ht.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), HEADER_BG),
         ("BOX", (0, 0), (-1, -1), 1, colors.black),
