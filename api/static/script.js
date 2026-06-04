@@ -1149,26 +1149,53 @@ async function downloadResults() {
 async function downloadCalculationSheet() {
     closeDownloadModal();
 
-    // Placeholder — will be implemented later
+    const payload = lastDesignData;
+    if (!payload) {
+        alert("No design results available. Please generate a design first.");
+        return;
+    }
+
+    // Capture diagram canvases as base64 PNG (same as downloadResults)
+    const diagrams = {};
+    const beamCanvas = document.getElementById("beamCanvas");
+    if (beamCanvas && beamCanvas.width > 0 && beamCanvas.height > 0) {
+        diagrams.beam_diagram = beamCanvas.toDataURL("image/png");
+    }
+    const chartIds = ["loadChart", "shearChart", "momentChart"];
+    const chartKeys = ["load_diagram", "shear_diagram", "moment_diagram"];
+    for (let i = 0; i < chartIds.length; i++) {
+        const c = document.getElementById(chartIds[i]);
+        if (c && c.width > 0 && c.height > 0) {
+            diagrams[chartKeys[i]] = c.toDataURL("image/png");
+        }
+    }
+    payload.diagrams_base64 = diagrams;
+
     try {
         const response = await fetch("/download-calculation-sheet", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(lastDesignData || {})
+            body: JSON.stringify(payload)
         });
 
         if (!response.ok) {
-            alert("Calculation sheet is not yet available.");
+            const err = await response.json().catch(() => ({}));
+            alert(err.error || "Failed to generate calculation sheet.");
             return;
         }
 
         const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
         const link = document.createElement("a");
-        link.href = window.URL.createObjectURL(blob);
-        link.download = "ai_beam_calculation_sheet.pdf";
+        link.href = url;
+        link.download = "ai_beam_calc_sheet.pdf";
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
     } catch (err) {
-        alert("Calculation sheet is not yet available.");
+        console.error("Calc sheet error:", err);
+        alert("Error generating calculation sheet.");
     }
 }
 
