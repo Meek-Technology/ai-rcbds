@@ -106,15 +106,14 @@ def generate_calc_sheet(data, filename="calc_sheet.pdf"):
     ]
 
     pw = A4[0] - 20 * mm  # page width
-    ht = Table(header_data, colWidths=[pw * 0.32, pw * 0.36, pw * 0.32])
+    ht = Table(header_data, colWidths=[pw * 0.32, pw * 0.34, pw * 0.34])
     ht.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), HEADER_BG),
         ("BOX", (0, 0), (-1, -1), 1, colors.black),
         ("LINEBELOW", (0, 0), (-1, 0), 0.75, colors.HexColor("#93c5fd")),
-        ("TOPPADDING", (0, 0), (-1, -1), 4),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-        ("BOTTOMPADDING", (0, 0), (-1, 0), 6),
-        ("TOPPADDING", (0, 1), (-1, 1), 6),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
     ]))
     content.append(ht)
     content.append(Spacer(1, 4))
