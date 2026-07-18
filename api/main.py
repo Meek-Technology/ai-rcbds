@@ -514,7 +514,7 @@ def system_info():
 @app.get("/version")
 def version():
     return {
-        "version": "2.3.0",
+        "version": "2.3.1",
         "release": "A Final Year Project",
         "year": 2026
     }
