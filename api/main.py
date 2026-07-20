@@ -58,6 +58,7 @@ def predict(data: dict):
     load_position = params.get("load_position")
     point_load = params.get("point_load", 0)
     overhang_length = params.get("overhang_length") or 0
+    slab_load = 0
 
     # ═══════════════════════════════════════════════
     #  CONTINUOUS BEAM → Three-Moment Solver
@@ -300,10 +301,9 @@ def predict(data: dict):
     # ═══════════════════════════════════════════════
 
     # ── Step 1: Estimate beam size (needed for self-weight) ──
-    beam_size = estimate_beam_size(span, beam_type)
+    original_size = estimate_beam_size(span, beam_type)
+    beam_size = dict(original_size)
 
-    # ── Step 2: Calculate factored loads (BS 8110) ──
-    # n1 = slab/user load (UDL), n2 = beam self-weight, n3 = wall load, p1 = point load
     slab_load = params.get("slab_load", 0) or load  # Use slab_load if given, else user's 'load'
 
     # For overhang + point load only (no UDL from user), set slab_load = 0
@@ -311,53 +311,65 @@ def predict(data: dict):
         slab_load = 0
         point_load = load  # The user's load IS the point load
 
-    loads = design_loads(
-        slab_load=slab_load,
-        beam_width_mm=beam_size["width"],
-        beam_depth_mm=beam_size["depth"],
-        wall_density=params.get("density", 0),
-        wall_thickness=params.get("wall_thickness", 0),
-        wall_height=params.get("wall_height", 0),
-        point_load=point_load,
-    )
+    # We iterate to converge on the stable beam size and its associated self-weight
+    for iteration in range(3):
+        # ── Step 2: Calculate factored loads (BS 8110) ──
+        loads = design_loads(
+            slab_load=slab_load,
+            beam_width_mm=beam_size["width"],
+            beam_depth_mm=beam_size["depth"],
+            wall_density=params.get("density", 0),
+            wall_thickness=params.get("wall_thickness", 0),
+            wall_height=params.get("wall_height", 0),
+            point_load=point_load,
+        )
 
-    w = loads["w_total_udl"]       # Total UDL = n1 + n2 + n3
-    p1 = loads["p1_point_load"]    # Point load (separate)
+        w = loads["w_total_udl"]       # Total UDL = n1 + n2 + n3
+        p1 = loads["p1_point_load"]    # Point load (separate)
 
-    # ── Step 3: Calculate design moment (M_udl + M_point) ──
-    moments = design_moment(w, span, beam_type, p1, load_position, overhang_length)
+        # ── Step 3: Calculate design moment (M_udl + M_point) ──
+        moments = design_moment(w, span, beam_type, p1, load_position, overhang_length)
+        M_total = moments["M_total"]
 
-    # ── Step 4: BS 8110 Bending Reinforcement Design ──
-    M_total = moments["M_total"]
-    reinf_result, final_w, final_d, resized = design_reinforcement_with_resize(
-        M_total, beam_size["width"], beam_size["depth"], fck, fy
-    )
+        # ── Step 4: BS 8110 Bending Reinforcement Design ──
+        reinf_result, final_w, final_d, resized_bending = design_reinforcement_with_resize(
+            M_total, beam_size["width"], beam_size["depth"], fck, fy
+        )
 
-    # If beam was resized, update beam_size
-    if resized:
-        beam_size = {"width": final_w, "depth": final_d}
+        # ── Step 5: BS 8110 Deflection check (Table 3.9) ──
+        temp_best, _ = recommend_reinforcement(reinf_result["As_req"])
+        defl_result, As_prov_final, h_final, defl_reinf, defl_fixed = deflection_check_with_fix(
+            span, final_w, final_d,
+            M_total, reinf_result["As_req"], temp_best["provided_area"],
+            fy, fck, beam_type
+        )
 
-    As_req = reinf_result["As_req"]
-    best_reinf, options = recommend_reinforcement(As_req)
+        new_width = final_w
+        new_depth = h_final if defl_fixed else final_d
 
-    # ── Step 5: BS 8110 Deflection check (Table 3.9) ──
-    defl_result, As_prov_final, h_final, defl_reinf, defl_fixed = deflection_check_with_fix(
-        span, beam_size["width"], beam_size["depth"],
-        M_total, As_req, best_reinf["provided_area"],
-        fy, fck, beam_type
-    )
+        if new_width == beam_size["width"] and new_depth == beam_size["depth"]:
+            # Converged
+            if defl_fixed:
+                best_reinf = defl_reinf
+                best_reinf, options = recommend_reinforcement(As_prov_final)
+                if h_final != final_d:
+                    reinf_result = design_bending_reinforcement(M_total, new_width, h_final, fck, fy)
+                    As_req = reinf_result["As_req"]
+                else:
+                    As_req = reinf_result["As_req"]
+            else:
+                As_req = reinf_result["As_req"]
+                best_reinf, options = recommend_reinforcement(As_req)
+            break
+        else:
+            # Update size and run again to update self-weight and moments
+            beam_size = {"width": new_width, "depth": new_depth}
+    else:
+        # Fallback if it didn't break early
+        best_reinf, options = recommend_reinforcement(reinf_result["As_req"])
+        As_req = reinf_result["As_req"]
 
-    # If deflection fix changed the beam depth or reinforcement, update
-    if defl_fixed:
-        if h_final != beam_size["depth"]:
-            beam_size = {"width": beam_size["width"], "depth": h_final}
-            resized = True
-            # Recalculate reinforcement for new depth
-            reinf_result = design_bending_reinforcement(M_total, beam_size["width"], h_final, fck, fy)
-            As_req = reinf_result["As_req"]
-        best_reinf = defl_reinf
-        best_reinf, options = recommend_reinforcement(As_prov_final)
-
+    resized = (beam_size["width"] != original_size["width"] or beam_size["depth"] != original_size["depth"])
     deflection_status = defl_result["status"]
 
     # ── Step 6: Shear & diagrams ──
