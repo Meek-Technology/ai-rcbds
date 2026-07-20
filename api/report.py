@@ -40,7 +40,7 @@ def generate_pdf(data, filename="beam_report.pdf"):
     # ══════════════════════════════════════════
     #  TITLE
     # ══════════════════════════════════════════
-    content.append(Paragraph("AI Structural Beam Design — Results Report", styles["Title"]))
+    content.append(Paragraph("AI - RCBDS Software — Results Report", styles["Title"]))
     content.append(Spacer(1, 6))
 
     # ══════════════════════════════════════════
@@ -111,11 +111,36 @@ def generate_pdf(data, filename="beam_report.pdf"):
     load_data = [
         ["n1 — Slab Load", f"{res.get('n1_slab_load', 0)} kN/m"],
         ["n2 — Beam Self-Weight", f"{res.get('n2_beam_self_weight', 0)} kN/m"],
-        ["n3 — Wall Load", f"{res.get('n3_wall_load', 0)} kN/m"],
-        ["w — Total UDL", f"{res.get('w_total_udl', 0)} kN/m"],
-        ["p1 — Point Load", f"{res.get('p1_point_load', 0)} kN"],
     ]
+
+    wall_uw = res.get("wall_unit_weight", 0)
+    wall_th = res.get("wall_thickness", 0)
+    wall_ht = res.get("wall_height", 0)
+    wall_ll = res.get("wall_line_load", 0)
+    has_wall = wall_ht > 0 and wall_th > 0
+
+    if has_wall:
+        load_data.append(["Wall Unit Weight", f"{wall_uw} kN/m³"])
+        load_data.append(["Wall Thickness", f"{wall_th} m"])
+        load_data.append(["Wall Height", f"{wall_ht} m"])
+        load_data.append(["Wall Line Load", f"{wall_ll} kN/m"])
+        load_data.append(["n3 — Factored Wall Load", f"{res.get('n3_wall_load', 0)} kN/m"])
+    else:
+        load_data.append(["n3 — Factored Wall Load", "0 kN/m (no wall)"])
+
+    load_data.append(["w — Total UDL", f"{res.get('w_total_udl', 0)} kN/m"])
+    load_data.append(["p1 — Point Load", f"{res.get('p1_point_load', 0)} kN"])
     _add_table(content, load_data)
+
+    # Engineering note
+    if has_wall:
+        wall_note = (f"Wall Line Load = Unit Weight × Thickness × Height "
+                     f"= {wall_uw} × {wall_th} × {wall_ht} = {wall_ll} kN/m. "
+                     f"n3 = 1.4 × {wall_ll} = {res.get('n3_wall_load', 0)} kN/m.")
+    else:
+        wall_note = "No wall dimensions supplied — wall load (n3) = 0."
+    content.append(Paragraph(wall_note, ParagraphStyle(
+        "WallNote", fontSize=7, textColor=colors.grey, spaceAfter=4)))
 
     # ══════════════════════════════════════════
     #  4. DESIGN RESULTS

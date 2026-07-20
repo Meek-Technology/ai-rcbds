@@ -29,15 +29,32 @@ def calc_beam_self_weight(width_mm, depth_mm):
 
 def calc_wall_load(density, thickness, height):
     """
-    Calculate factored wall load (kN/m).
-    n3 = 1.4 × (density × thickness × height)
-    density: unit weight of wall material (kN/m³), e.g. 2.87 for blockwork
+    Calculate wall line load and factored wall load (kN/m).
+
+    Wall Line Load = density × thickness × height
+    n3 = 1.4 × Wall Line Load
+
+    A wall exists only if BOTH height > 0 AND thickness > 0.
+
+    density: unit weight of wall material (kN/m³), default 20.0 for hollow block masonry
     thickness: wall thickness (m)
     height: wall height (m)
-    Returns: factored wall load in kN/m
+
+    Returns dict:
+        wall_line_load: unfactored wall load (kN/m)
+        n3: factored wall load (kN/m)
     """
-    unfactored = density * thickness * height
-    return round(DEAD_LOAD_FACTOR * unfactored, 3)
+    if height > 0 and thickness > 0:
+        wall_line_load = density * thickness * height
+        n3 = DEAD_LOAD_FACTOR * wall_line_load
+    else:
+        wall_line_load = 0.0
+        n3 = 0.0
+
+    return {
+        "wall_line_load": round(wall_line_load, 3),
+        "n3": round(n3, 3),
+    }
 
 
 def design_loads(slab_load=0, beam_width_mm=230, beam_depth_mm=300,
@@ -48,16 +65,19 @@ def design_loads(slab_load=0, beam_width_mm=230, beam_depth_mm=300,
 
     n1 = slab_load (provided, already factored, kN/m)
     n2 = beam self-weight (1.4 × b × d × 24, kN/m)
-    n3 = wall load (1.4 × density × thickness × height, kN/m)
+    n3 = factored wall line load (1.4 × unit_weight × thickness × height, kN/m)
     p1 = point_load (kN)
 
     w = n1 + n2 + n3  (total UDL, kN/m)
 
-    Returns dict with n1, n2, n3, w, p1
+    Returns dict with n1, n2, n3, w, p1, and wall detail breakdown
     """
     n1 = slab_load
     n2 = calc_beam_self_weight(beam_width_mm, beam_depth_mm)
-    n3 = calc_wall_load(wall_density, wall_thickness, wall_height) if wall_height > 0 else 0
+
+    wall_result = calc_wall_load(wall_density, wall_thickness, wall_height)
+    n3 = wall_result["n3"]
+    wall_line_load = wall_result["wall_line_load"]
 
     w = n1 + n2 + n3  # total UDL
 
@@ -65,6 +85,10 @@ def design_loads(slab_load=0, beam_width_mm=230, beam_depth_mm=300,
         "n1_slab_load": round(n1, 3),
         "n2_beam_self_weight": round(n2, 3),
         "n3_wall_load": round(n3, 3),
+        "wall_unit_weight": round(wall_density, 2),
+        "wall_thickness": round(wall_thickness, 3),
+        "wall_height": round(wall_height, 2),
+        "wall_line_load": round(wall_line_load, 3),
         "w_total_udl": round(w, 3),
         "p1_point_load": round(point_load, 3),
     }

@@ -66,7 +66,7 @@ function showModal(params) {
         ["support_right",   "Right Support",    "",    false],
         ["wall_height",     "Wall Height",      "m",   false],
         ["wall_thickness",  "Wall Thickness",   "m",   false],
-        ["density",         "Wall Density",     "kN/m³", false],
+        ["density",         "Wall Unit Weight", "kN/m³", false],
     ];
 
     const typeLabels = {
@@ -1089,6 +1089,7 @@ function closeDownloadModal() {
 }
 
 async function downloadResults() {
+    const projectTitle = document.getElementById("projectTitleInput").value.trim();
     closeDownloadModal();
 
     // Build a comprehensive data payload from whatever is on screen
@@ -1098,6 +1099,7 @@ async function downloadResults() {
         alert("No design results available. Please generate a design first.");
         return;
     }
+    payload.project_title = projectTitle;
 
     // ── Capture diagram canvases as base64 PNG ──
     const diagrams = {};
@@ -1147,6 +1149,7 @@ async function downloadResults() {
 }
 
 async function downloadCalculationSheet() {
+    const projectTitle = document.getElementById("projectTitleInput").value.trim();
     closeDownloadModal();
 
     const payload = lastDesignData;
@@ -1154,6 +1157,7 @@ async function downloadCalculationSheet() {
         alert("No design results available. Please generate a design first.");
         return;
     }
+    payload.project_title = projectTitle;
 
     // Capture diagram canvases as base64 PNG (same as downloadResults)
     const diagrams = {};

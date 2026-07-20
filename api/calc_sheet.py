@@ -90,20 +90,25 @@ def generate_calc_sheet(data, filename="calc_sheet.pdf"):
     }
 
     # ══════════════════════════════════════════
-    #  1. HEADER BLOCK
+    #  1. PROJECT TITLE & HEADER BLOCK
     # ══════════════════════════════════════════
+    project_title = data.get("project_title", "")
+    if project_title:
+        title_html = f"<b>PROJECT TITLE:</b> <font color='#1e3a5f'>{project_title.upper()}</font>"
+    else:
+        title_html = "<b>PROJECT TITLE:</b> ____________________________________________________________________________________"
+    
+    title_p = Paragraph(title_html, ParagraphStyle(
+        "ProjTitle", parent=styles["Normal"], fontSize=9, fontName="Helvetica", spaceAfter=6
+    ))
+    content.append(title_p)
+    content.append(Spacer(1, 2))
+
     header_data = [
         [
-            Paragraph("<b>Project Title:</b>", _p(9, HEADER_FG, TA_LEFT)),
-        ],
-        [
-            Paragraph("<b>AI REINFORCED CONCRETE BEAM DESIGN SYSTEM</b>", _p(10, HEADER_FG, TA_LEFT)),
+            Paragraph("<b>AI STRUCTURAL DESIGN SYSTEM</b>", _p(10, HEADER_FG, TA_LEFT)),
             Paragraph("", _p(10, HEADER_FG, TA_CENTER)),
-            Paragraph("<b>CALCULATION SHEET</b>", _p(10, HEADER_FG, TA_RIGHT)),
-        # [
-        #     Paragraph("<b>AI STRUCTURAL DESIGN SYSTEM</b>", _p(10, HEADER_FG, TA_LEFT)),
-        #     Paragraph("", _p(10, HEADER_FG, TA_CENTER)),
-        #     Paragraph("<b>BEAM DESIGN CALCULATION SHEET</b>", _p(10, HEADER_FG, TA_RIGHT)),
+            Paragraph("<b>BEAM DESIGN CALCULATION SHEET</b>", _p(10, HEADER_FG, TA_RIGHT)),
         ],
         [
             Paragraph(f"Beam Type: <b>{bt_labels.get(beam_type, beam_type)}</b>", _p(8, HEADER_FG, TA_LEFT)),
@@ -167,17 +172,37 @@ def generate_calc_sheet(data, filename="calc_sheet.pdf"):
     #  3. LOAD BREAKDOWN
     # ══════════════════════════════════════════
     content.append(Paragraph("LOAD BREAKDOWN (BS 8110)", section_s))
+
+    wall_uw = res.get("wall_unit_weight", 0)
+    wall_th = res.get("wall_thickness", 0)
+    wall_ht = res.get("wall_height", 0)
+    wall_ll = res.get("wall_line_load", 0)
+    has_wall = wall_ht > 0 and wall_th > 0
+
     load_rows = [
         [_b("Component"), _b("Value"), _b("Component"), _b("Value")],
-        ["n1 — Slab Load", f"{res.get('n1_slab_load', 0)} kN/m",
-         "n3 — Wall Load", f"{res.get('n3_wall_load', 0)} kN/m"],
-        ["n2 — Self-Weight", f"{res.get('n2_beam_self_weight', 0)} kN/m",
-         "p1 — Point Load", f"{res.get('p1_point_load', 0)} kN"],
-        ["w — Total UDL", f"{res.get('w_total_udl', 0)} kN/m", "", ""],
+        ["n1 = Slab Load", f"{res.get('n1_slab_load', 0)} kN/m",
+         "Wall Unit Weight", f"{wall_uw} kN/m³" if has_wall else "—"],
+        ["n2 = Beam Self Weight", f"{res.get('n2_beam_self_weight', 0)} kN/m",
+         "Wall Thickness", f"{wall_th} m" if has_wall else "—"],
+        ["n3 = Factored Wall Line Load", f"{res.get('n3_wall_load', 0)} kN/m",
+         "Wall Height", f"{wall_ht} m" if has_wall else "—"],
+        ["w = Total UDL", f"{res.get('w_total_udl', 0)} kN/m",
+         "Wall Line Load", f"{wall_ll} kN/m" if has_wall else "—"],
+        ["p1 = Point Load", f"{res.get('p1_point_load', 0)} kN", "", ""],
     ]
-    lt = Table(load_rows, colWidths=[pw * 0.22, pw * 0.28, pw * 0.22, pw * 0.28])
+    lt = Table(load_rows, colWidths=[pw * 0.25, pw * 0.25, pw * 0.25, pw * 0.25])
     lt.setStyle(_grid_style(header_row=True))
     content.append(lt)
+
+    # Engineering note
+    if has_wall:
+        wall_note = (f"<i>Wall Line Load = Unit Weight × Thickness × Height "
+                     f"= {wall_uw} × {wall_th} × {wall_ht} = {wall_ll} kN/m; "
+                     f"n3 = 1.4 × {wall_ll} = {res.get('n3_wall_load', 0)} kN/m</i>")
+    else:
+        wall_note = "<i>No wall dimensions supplied — n3 = 0</i>"
+    content.append(Paragraph(wall_note, _p(7, colors.HexColor("#64748b"), TA_LEFT)))
     content.append(Spacer(1, 4))
 
     # ══════════════════════════════════════════

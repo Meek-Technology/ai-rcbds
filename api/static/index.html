@@ -8,7 +8,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>AI Reinforced Concrete Beam Design System</title>
-    <link rel="stylesheet" href="style.css?v=18">
+    <link rel="stylesheet" href="style.css?v=19">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
@@ -67,7 +67,7 @@
                 <h4 style="margin-top:12px; opacity:0.8;">Load Breakdown (BS 8110)</h4>
                 <div class="result-item">n1 — Slab Load: <span id="n1"></span></div>
                 <div class="result-item">n2 — Beam Self-Weight: <span id="n2"></span></div>
-                <div class="result-item">n3 — Wall Load: <span id="n3"></span></div>
+                <div class="result-item">n3 — Factored Wall Load: <span id="n3"></span></div>
                 <div class="result-item"><strong>w — Total UDL:</strong> <span id="wTotal"></span></div>
                 <div class="result-item">p1 — Point Load: <span id="p1"></span></div>
 
@@ -89,23 +89,31 @@
                 <button onclick="openDownloadModal()">Download PDF</button>
             </div>
 
-        <!-- DOWNLOAD OPTIONS MODAL -->
-        <div id="downloadModal" class="modal-overlay">
-            <div class="modal-box">
-                <div class="modal-header">
-                    <h3>📥 Download Options</h3>
-                    <span class="modal-close" onclick="closeDownloadModal()">&times;</span>
-                </div>
+            <!-- DOWNLOAD OPTIONS MODAL -->
+            <div id="downloadModal" class="modal-overlay">
+                <div class="modal-box">
+                    <div class="modal-header">
+                        <h3>📥 Download Options</h3>
+                        <span class="modal-close" onclick="closeDownloadModal()">&times;</span>
+                    </div>
 
-                <p class="modal-subtitle">Choose the document you would like to download.</p>
+                    <p class="modal-subtitle">Choose the document you would like to download.</p>
 
-                <div class="modal-actions" style="flex-direction:column; gap:12px;">
-                    <button class="btn-confirm" onclick="downloadResults()" style="width:100%;">📄 Download Results</button>
-                    <button class="btn-confirm" onclick="downloadCalculationSheet()" style="width:100%; background:linear-gradient(135deg, #6366f1, #8b5cf6);">📋 Download Calculation Sheet</button>
-                    <button class="btn-cancel" onclick="closeDownloadModal()">Cancel</button>
+                    <div style="margin-bottom: 20px; text-align: left; background: rgba(255, 255, 255, 0.03); padding: 14px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.08);">
+                        <label for="projectTitleInput" style="display: block; font-weight: 600; margin-bottom: 8px; font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Project Title (Optional)</label>
+                        <input type="text" id="projectTitleInput" placeholder="Enter project title..." style="width: 100%; padding: 10px 12px; background: #0f172a; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 6px; color: #f8fafc; font-size: 14px; outline: none; box-sizing: border-box; transition: border-color 0.2s;" onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='rgba(255,255,255,0.15)'">
+                    </div>
+
+                    <div class="modal-actions" style="flex-direction:column; gap:12px;">
+                        <button class="btn-confirm" onclick="downloadResults()" style="width:100%;">📄 Download
+                            Results</button>
+                        <button class="btn-confirm" onclick="downloadCalculationSheet()"
+                            style="width:100%; background:linear-gradient(135deg, #6366f1, #8b5cf6);">📋 Download
+                            Calculation Sheet</button>
+                        <button class="btn-cancel" onclick="closeDownloadModal()">Cancel</button>
+                    </div>
                 </div>
             </div>
-        </div>
 
             <!-- </div> -->
 
@@ -134,13 +142,15 @@
         </div>
 
         <p style="text-align:center; opacity:0.6;">
-            A Final Year B.Eng Civil Engineering Project by: <br> Adesemoye David - FTP/CVE/25/0086833 | Abdulrasheed Nurudeen - FTP/CVE/25/0096105
-            <br> Abdulazeez Waliy - FTP/CVE/25/0095484 | Abbas Jamiu - FTP/CVE/25/0099051 <br>— Supervisor: Engr. Dr. I. H. Adebakin —<br> All rights
+            A Final Year B.Eng Civil Engineering Project by: <br> Adesemoye David - FTP/CVE/25/0086833 | Abdulrasheed
+            Nurudeen - FTP/CVE/25/0096105
+            <br> Abdulazeez Waliy - FTP/CVE/25/0095484 | Abbas Jamiu - FTP/CVE/25/0099051
+            <br>— Supervisors: Engr. M. T. Shokunbi | Engr. Dr. I. H. Adebakin —<br> All rights
             reserved &copy; 2026
         </p>
     </div>
 
-    <script src="script.js?v=18"></script>
+    <script src="script.js?v=19"></script>
 </body>
 
 </html>

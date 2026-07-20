@@ -122,7 +122,7 @@ def build():
 
     c.append(Paragraph("apply_defaults(params) \u2014 The Safety Net", h2))
     for b_text in [
-        "Fills in missing values with <b>engineering defaults</b>: fcu=25, fy=460, density=2.87",
+        "Fills in missing values with <b>engineering defaults</b>: fcu=25, fy=460, wall unit weight=20.0",
         "<b>Validates</b> that span and load are provided (raises ValueError if missing)",
     ]:
         c.append(Paragraph(b_text, bullet, bulletText="\u2022"))
@@ -200,7 +200,7 @@ def build():
     c.append(tbl([
         ["Function", "Purpose", "Formula"],
         ["calc_beam_self_weight()", "Factored self-weight", "n2 = 1.4 \u00d7 b \u00d7 d \u00d7 24"],
-        ["calc_wall_load()", "Factored wall load", "n3 = 1.4 \u00d7 density \u00d7 thickness \u00d7 height"],
+        ["calc_wall_load()", "Wall line load & factored wall load", "Wall Line Load = UW × t × h; n3 = 1.4 × WLL"],
         ["design_loads()", "Combines all loads", "w = n1 + n2 + n3"],
         ["bending_moment()", "Max BM for beam type", "Varies by type"],
         ["max_shear_force()", "Maximum shear", "Varies by type"],
