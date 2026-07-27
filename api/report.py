@@ -82,7 +82,7 @@ def generate_pdf(data, filename="beam_report.pdf"):
 
     # Add overhang length for overhang beams
     oh_len = inp.get("overhang_length", 0) or 0
-    if beam_type == "overhang" and oh_len > 0:
+    if inp.get("beam_type") == "overhang" and oh_len > 0:
         input_data.insert(3, ["Overhang Length", f"{oh_len} m"])
 
     # Supports

@@ -514,19 +514,19 @@ def health_check():
 @app.get("/info")
 def system_info():
     return {
-        "Project": "AI Structural Beam Design System",
-        "Developed by": "MEEK Technology",
-        "Lead developer": "Engr. Micheal Shokunbi",
+        "Project": "AI-RCBDS (AI Reinforced Concrete Beam Design System)",
+        "Developed by": "Engr. Micheal Shokunbi",
+        "Version": "Final Year Project",
         "Features": [
-            "AI prediction",
-            "Prompt-based input",
-            "Graph visualization",
-            "Wall load calculation",
-            "Reinforcement design",
-            "PDF report generation",
-            "Multiple beam types (Simply Supported, Cantilever, Continuous, Overhang)",
-            "Multiple load types (UDL, Point Load, Triangular)",
-            "Support conditions (Roller, Pinned, Fixed)"
+            "AI Machine Learning Prediction",
+            "Natural Language Prompt-Based Input",
+            "Graphical Visualization (SFD, BMD, Load Diagrams)",
+            "BS 8110 Factored Wall Load Calculation",
+            "Rigorous Reinforcement Design (BS 8110)",
+            "Detailed PDF Calculation Sheet & Report Generation",
+            "Multi-Span Continuous Beam Analysis (Three-Moment Theorem)",
+            "Multiple Beam Types (Simply Supported, Cantilever, Continuous, Overhang)",
+            "Multiple Support Conditions (Roller, Pinned, Fixed)"
         ]
     }
 
@@ -544,10 +544,12 @@ def version():
 def example_input():
     return {
         "examples": [
-            {"prompt": "Design a simply supported beam with span 6m, UDL of 25kN/m, concrete grade 30 and steel grade 500"},
-            {"prompt": "Design a cantilever beam with span 4m, point load of 30kN at 4m"},
-            {"prompt": "Design a continuous beam with span 8m and UDL 20kN/m"},
-            {"prompt": "Design a simply supported beam with span 5m and triangular load of 15kN/m"},
+            {"prompt": "Design a simply supported beam with span 6m, UDL of 25kN/m, fcu 30 and fy 500"},
+            {"prompt": "Design a cantilever beam of span 4m, point load 30kN at 4m with fixed support"},
+            {"prompt": "Design a continuous beam with spans 5m, 6m, and 5m, UDL of 15kN/m, supports pinned, roller, roller, pinned"},
+            {"prompt": "Design an overhang beam with span 7m and overhang 2m, UDL 20kN/m, pinned and roller supports"},
+            {"prompt": "Calculate a continuous beam of spans 4m and 5m, with wall thickness 230mm, wall height 3m, UDL 10kN/m, supports fixed, roller, pinned"},
+            {"prompt": "Design a simply supported beam with span 5m, UDL 20kN/m, wall thickness 230mm, wall height 2.5m, unit weight 20 kN/m3"},
         ]
     }
 
