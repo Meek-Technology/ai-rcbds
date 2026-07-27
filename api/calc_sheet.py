@@ -106,9 +106,9 @@ def generate_calc_sheet(data, filename="calc_sheet.pdf"):
 
     header_data = [
         [
-            Paragraph("<b>AI-RCBDS: REINFORCED CONCRETE BEAM DESIGN SYSTEM</b>", _p(9, HEADER_FG, TA_LEFT)),
-            Paragraph("", _p(9, HEADER_FG, TA_CENTER)),
-            Paragraph("<b>DETAILED ENGINEERING CALCULATION SHEET</b>", _p(9, HEADER_FG, TA_RIGHT)),
+            Paragraph("<b>AI-RCBDS: REINFORCED CONCRETE BEAM DESIGN SYSTEM</b>", _p(10, HEADER_FG, TA_LEFT)),
+            Paragraph("", _p(10, HEADER_FG, TA_CENTER)),
+            Paragraph("<b>DETAILED ENGINEERING CALCULATION SHEET</b>", _p(10, HEADER_FG, TA_RIGHT)),
         ],
         [
             Paragraph(f"Beam Type: <b>{bt_labels.get(beam_type, beam_type)}</b>", _p(8, HEADER_FG, TA_LEFT)),

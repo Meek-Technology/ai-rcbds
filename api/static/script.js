@@ -65,21 +65,21 @@ function showModal(params) {
 
     // Parameter definitions: [key, label, unit, highlight?]
     const fields = [
-        ["beam_type",       "Beam Type",        "",    true],
-        ["load_type",       "Load Type",        "",    true],
-        ["span",            "Span",             "m",   false],
-        ["load",            "Load",             "kN/m", false],
-        ["slab_load",       "Slab Load (n1)",   "kN/m", false],
-        ["point_load",      "Point Load (p1)",  "kN",  false],
-        ["load_position",   "Load Position",    "m",   false],
-        ["overhang_length", "Overhang Length",   "m",   false],
-        ["fcu",             "Concrete (fcu)",   "N/mm²", false],
-        ["fy",              "Steel (fy)",       "N/mm²", false],
-        ["support_left",    "Left Support",     "",    false],
-        ["support_right",   "Right Support",    "",    false],
-        ["wall_height",     "Wall Height",      "m",   false],
-        ["wall_thickness",  "Wall Thickness",   "m",   false],
-        ["density",         "Wall Unit Weight", "kN/m³", false],
+        ["beam_type", "Beam Type", "", true],
+        ["load_type", "Load Type", "", true],
+        ["span", "Span", "m", false],
+        ["load", "Load", "kN/m", false],
+        ["slab_load", "Slab Load (n1)", "kN/m", false],
+        ["point_load", "Point Load (p1)", "kN", false],
+        ["load_position", "Load Position", "m", false],
+        ["overhang_length", "Overhang Length", "m", false],
+        ["fcu", "Concrete (fcu)", "N/mm²", false],
+        ["fy", "Steel (fy)", "N/mm²", false],
+        ["support_left", "Left Support", "", false],
+        ["support_right", "Right Support", "", false],
+        ["wall_height", "Wall Height", "m", false],
+        ["wall_thickness", "Wall Thickness", "m", false],
+        ["density", "Wall Unit Weight", "kN/m³", false],
     ];
 
     const typeLabels = {
@@ -198,9 +198,9 @@ function resetUI() {
     });
 
     // Destroy existing Chart.js instances
-    if (shearChart)  { shearChart.destroy();  shearChart  = null; }
+    if (shearChart) { shearChart.destroy(); shearChart = null; }
     if (momentChart) { momentChart.destroy(); momentChart = null; }
-    if (loadChart)   { loadChart.destroy();   loadChart   = null; }
+    if (loadChart) { loadChart.destroy(); loadChart = null; }
 
     // Reset beam diagram canvas (dimensions + content)
     const canvas = document.getElementById("beamCanvas");
@@ -363,7 +363,7 @@ async function generate(prompt) {
                 html += `<div class="result-item">Concrete Shear Capacity (v<sub>c</sub>): <strong>${sd.vc} N/mm\u00B2</strong></div>`;
                 if (sd.link_type) {
                     const typeLabel = sd.link_type === "design" ? "Design links" :
-                                      sd.link_type === "minimum" ? "Minimum links" : "Nominal links";
+                        sd.link_type === "minimum" ? "Minimum links" : "Nominal links";
                     html += `<div class="result-item">Link Type: <strong>${typeLabel}</strong></div>`;
                 }
                 html += `<div class="result-item">Stirrups Provided: <strong>${sd.link_description}</strong></div>`;
@@ -1170,7 +1170,7 @@ async function downloadResults() {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.download = "ai_beam_results.pdf";
+        link.download = "ai-rcbds_results_report.pdf";
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -1225,7 +1225,7 @@ async function downloadCalculationSheet() {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.download = "ai_beam_calc_sheet.pdf";
+        link.download = "ai-rcbds_calc_sheet.pdf";
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);

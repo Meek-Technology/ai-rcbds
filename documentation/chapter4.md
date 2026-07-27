@@ -1268,3 +1268,45 @@ The calculation sheet uses a professional colour palette:
 | `api/static/script.js` | Updated `downloadCalculationSheet()` to send full data payload with diagram captures and proper DOM-based file download |
 | `api/static/index.html` | Cache bust to v17 |
 
+
+## 4.32 Custom Project Title Integration
+
+A custom project title feature was integrated to allow users to personalize the generated calculation sheets. 
+When the user clicks the "Download PDF" button, a modal prompts them for an optional "Project Title". If provided, this title is injected into the PDF generation payload and elegantly embedded at the top of the Calculation Sheet using a distinguished font colour (`#1e3a5f`), providing professional branding for specific engineering projects.
+
+
+## 4.33 Factored Wall Loading Update (BS 8110)
+
+The wall loading algorithm was corrected to adhere to standard structural engineering practices. Previously, a raw value (e.g. 2.87) was treated as density. Following engineering review, this was revised to calculate the precise **Wall Line Load** in kN/m using the formula:
+
+`Wall Line Load = Unit Weight × Thickness × Height`
+
+The system now enforces a default unit weight of 20.0 kN/m³ (representing conventional hollow block masonry) unless the user specifically overrides it in the prompt. The resulting Wall Line Load is then factored using the BS 8110 permanent load safety factor (1.4):
+
+`n3 = 1.4 × Wall Line Load`
+
+This corrected calculation is now dynamically presented in both the user interface and the exported PDF calculation sheet load breakdown.
+
+
+## 4.34 Overhang Beam Handling Improvements
+
+Several issues affecting the presentation of Overhang beams were resolved:
+
+1. **Robust Prompt Parsing**: The natural language parser (`nlp/prompt_parser.py`) was enhanced to recognize diverse overhang definitions in prompts (e.g. `overhang 2m`, `overhang of 2.5m`, `overhang: 2m`, `overhang = 2m`).
+2. **Distinct Geometry Display**: The user interface (Results panel) and the generated PDF reports were modified. Previously, the "Span" label was used generically. Now, when an overhang beam is detected, the system distinctly breaks down the total length, explicitly displaying both the main **Span** and the **Overhang Length**.
+3. **Diagram Integrity**: The Canvas beam diagram was updated to proportionally render the overhang segment when specified, preventing UI bugs where a zero or undetected overhang defaulted to a standard span rendering.
+
+
+## 4.35 Enhanced System Branding & UI
+
+### 4.35.1 AI-RCBDS Nomenclature
+The system's name was officially updated to **AI-RCBDS (AI Reinforced Concrete Beam Design System)**. The PDF report headers, the calculation sheet titles, and the downloaded PDF filenames were all updated to reflect this new identity (e.g., `ai-rcbds_calc_sheet.pdf` and `ai-rcbds_results_report.pdf`).
+
+### 4.35.2 Landing Page Overlay
+A highly immersive, premium landing page overlay was designed for the application. It features:
+- A glassmorphism background that blurs a structural engineering background image (`landing-page.webp`).
+- An animated gradient text accentuating the system title.
+- A prominent "Launch Application" button that gracefully fades out the overlay to reveal the main application interface.
+
+### 4.35.3 System Favicon
+A custom favicon (`fuoye.webp`) was linked to the application to provide a professional, recognizable browser tab icon.

@@ -91,8 +91,8 @@ def generate_pdf(data, filename="beam_report.pdf"):
         sup_str = " → ".join([s.title() for s in supports])
         input_data.append(["Supports", sup_str])
     else:
-        sl = inp.get("support_left", "pinned").title()
-        sr = inp.get("support_right", "roller").title()
+        sl = (inp.get("support_left") or "pinned").title()
+        sr = (inp.get("support_right") or "roller").title()
         input_data.append(["Supports", f"{sl} — {sr}"])
 
     _add_table(content, input_data)
