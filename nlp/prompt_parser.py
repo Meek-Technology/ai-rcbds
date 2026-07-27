@@ -70,9 +70,9 @@ def extract_parameters(text):
         text, re.IGNORECASE
     )
 
-    # ── Overhang length (e.g., "overhang BC of 2m", "overhang of 2m", "overhang 2m") ──
+    # ── Overhang length (e.g., "overhang BC of 2m", "overhang of 2m", "overhang 2m", "overhang: 2m") ──
     overhang_match = re.search(
-        r'overhang(?:\s+\w+)*?\s*(?:of\s+)?(\d+\.?\d*)\s*m',
+        r'overhang(?:\s*[:=\-]?\s*(?:\w+\s+){0,3})?(?:of\s+)?(\d+\.?\d*)\s*m',
         text, re.IGNORECASE
     )
 

@@ -4,6 +4,19 @@ let shearChart, momentChart, loadChart;
 let pendingParams = null;
 
 // ═══════════════════════════════════════════════
+//  LANDING PAGE
+// ═══════════════════════════════════════════════
+
+function closeLandingPage() {
+    const overlay = document.getElementById("landingOverlay");
+    if (overlay) {
+        overlay.classList.add("hidden");
+        // Remove from DOM after transition completes
+        setTimeout(() => overlay.remove(), 700);
+    }
+}
+
+// ═══════════════════════════════════════════════
 //  STEP 1: Parse prompt → Show modal
 // ═══════════════════════════════════════════════
 
@@ -160,7 +173,7 @@ async function confirmGenerate() {
 function resetUI() {
     // Clear text result fields
     const textIds = [
-        "beamType", "loadType", "support",
+        "beamType", "loadType", "support", "beamSpan", "overhangLength",
         "n1", "n2", "n3", "wTotal", "p1",
         "mUdl", "mPoint", "moment", "shear", "steel",
         "reinf", "beam", "deflection"
@@ -169,6 +182,10 @@ function resetUI() {
         const el = document.getElementById(id);
         if (el) el.innerText = "";
     });
+
+    // Hide overhang row
+    const ohRow = document.getElementById("overhangRow");
+    if (ohRow) ohRow.style.display = "none";
 
     // Hide & clear dynamic sections
     const dynamicIds = ["designData", "continuousData"];
@@ -247,6 +264,22 @@ async function generate(prompt) {
         } else {
             document.getElementById("support").innerText =
                 capitalize(data.input.support_left) + " — " + capitalize(data.input.support_right);
+        }
+
+        // ── Span & Overhang display ──
+        if (data.continuous) {
+            document.getElementById("beamSpan").innerText =
+                data.continuous.spans.map(s => s + "m").join(" + ");
+            document.getElementById("overhangRow").style.display = "none";
+        } else {
+            document.getElementById("beamSpan").innerText = data.input.span + " m";
+            const ohLen = data.input.overhang_length || 0;
+            if (data.input.beam_type === "overhang" && ohLen > 0) {
+                document.getElementById("overhangRow").style.display = "block";
+                document.getElementById("overhangLength").innerText = ohLen + " m";
+            } else {
+                document.getElementById("overhangRow").style.display = "none";
+            }
         }
 
         // ── Load Breakdown ──

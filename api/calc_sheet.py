@@ -147,6 +147,7 @@ def generate_calc_sheet(data, filename="calc_sheet.pdf"):
         ]
     else:
         span = inp.get("span", 0)
+        oh_len = inp.get("overhang_length", 0) or 0
         sl = inp.get("support_left", "pinned").title()
         sr = inp.get("support_right", "roller").title()
         geo_rows = [
@@ -154,6 +155,8 @@ def generate_calc_sheet(data, filename="calc_sheet.pdf"):
             [_b("Left Support"), sl, _b("Right Support"), sr],
             [_b("Concrete (fcu)"), f"{fcu} N/mm²", _b("Steel (fy)"), f"{fy} N/mm²"],
         ]
+        if beam_type == "overhang" and oh_len > 0:
+            geo_rows.append([_b("Overhang Length"), f"{oh_len} m", _b("Total Length"), f"{span + oh_len} m"])
 
     geo_t = Table(geo_rows, colWidths=[pw * 0.18, pw * 0.32, pw * 0.18, pw * 0.32])
     geo_t.setStyle(TableStyle([

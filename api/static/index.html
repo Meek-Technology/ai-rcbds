@@ -7,12 +7,34 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>AI-RCBDS Software — A Final Year Project</title>
-    <link rel="stylesheet" href="style.css?v=19">
+    <title>AI-RCBDS Software | A Final Year Project</title>
+    <link rel="icon" type="image/webp" href="favicon/fuoye.webp">
+    <link rel="stylesheet" href="style.css?v=21">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
+
+    <!-- ═══════════════════════════════════════════════
+         LANDING PAGE OVERLAY
+         ═══════════════════════════════════════════════ -->
+    <div id="landingOverlay" class="landing-overlay">
+        <div class="landing-content">
+            <img src="image/landing-page.webp" alt="Structural Engineering" class="landing-bg-img">
+            <div class="landing-text-overlay">
+                <div class="landing-badge">FUOYE — Civil Engineering</div>
+                <h1 class="landing-title">
+                    AI-REINFORCED CONCRETE<br>
+                    <span class="landing-title-accent">BEAM DESIGN SYSTEM</span>
+                </h1>
+                <p class="landing-subtitle">BS 8110 Compliant &bull; Machine-Learning Powered &bull; Final Year Project</p>
+                <button id="landingContinueBtn" class="landing-btn" onclick="closeLandingPage()">
+                    <span>Launch Application</span>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </button>
+            </div>
+        </div>
+    </div>
 
     <div class="container">
         <p style="text-align:right; opacity:0.6;">
@@ -54,8 +76,6 @@
         <!-- OUTPUT GRID -->
         <div class="grid">
 
-            <!-- <div class="flex"> -->
-
             <!-- RESULTS -->
             <div class="card">
                 <h3>Results</h3>
@@ -63,6 +83,8 @@
                 <div class="result-item"><strong>Beam Type:</strong> <span id="beamType"></span></div>
                 <div class="result-item"><strong>Load Type:</strong> <span id="loadType"></span></div>
                 <div class="result-item"><strong>Support:</strong> <span id="support"></span></div>
+                <div class="result-item"><strong>Span:</strong> <span id="beamSpan"></span></div>
+                <div class="result-item" id="overhangRow" style="display:none;"><strong>Overhang Length:</strong> <span id="overhangLength"></span></div>
 
                 <h4 style="margin-top:12px; opacity:0.8;">Load Breakdown (BS 8110)</h4>
                 <div class="result-item">n1 — Slab Load: <span id="n1"></span></div>
@@ -121,8 +143,6 @@
                 </div>
             </div>
 
-            <!-- </div> -->
-
             <!-- GRAPHS -->
             <div class="card">
                 <h3>Graphs</h3>
@@ -155,7 +175,7 @@
         </p>
     </div>
 
-    <script src="script.js?v=19"></script>
+    <script src="script.js?v=21"></script>
 </body>
 
 </html>
