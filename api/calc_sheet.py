@@ -96,7 +96,7 @@ def generate_calc_sheet(data, filename="calc_sheet.pdf"):
     if project_title:
         title_html = f"<b>PROJECT TITLE:</b> <font color='#1e3a5f'>{project_title.upper()}</font>"
     else:
-        title_html = "<b>PROJECT TITLE:</b> ____________________________________________________________________________________"
+        title_html = "<b>PROJECT TITLE:</b> _______________________________________________________________________________________"
     
     title_p = Paragraph(title_html, ParagraphStyle(
         "ProjTitle", parent=styles["Normal"], fontSize=9, fontName="Helvetica", spaceAfter=6
@@ -106,9 +106,9 @@ def generate_calc_sheet(data, filename="calc_sheet.pdf"):
 
     header_data = [
         [
-            Paragraph("<b>AI STRUCTURAL DESIGN SYSTEM</b>", _p(10, HEADER_FG, TA_LEFT)),
-            Paragraph("", _p(10, HEADER_FG, TA_CENTER)),
-            Paragraph("<b>BEAM DESIGN CALCULATION SHEET</b>", _p(10, HEADER_FG, TA_RIGHT)),
+            Paragraph("<b>AI-RCBDS: REINFORCED CONCRETE BEAM DESIGN SYSTEM</b>", _p(9, HEADER_FG, TA_LEFT)),
+            Paragraph("", _p(9, HEADER_FG, TA_CENTER)),
+            Paragraph("<b>DETAILED ENGINEERING CALCULATION SHEET</b>", _p(9, HEADER_FG, TA_RIGHT)),
         ],
         [
             Paragraph(f"Beam Type: <b>{bt_labels.get(beam_type, beam_type)}</b>", _p(8, HEADER_FG, TA_LEFT)),

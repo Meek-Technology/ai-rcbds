@@ -40,7 +40,7 @@ def generate_pdf(data, filename="beam_report.pdf"):
     # ══════════════════════════════════════════
     #  TITLE
     # ══════════════════════════════════════════
-    content.append(Paragraph("AI - RCBDS Software — Results Report", styles["Title"]))
+    content.append(Paragraph("AI-RCBDS: Reinforced Concrete Beam Design System<br/>Results Report", styles["Title"]))
     content.append(Spacer(1, 6))
 
     # ══════════════════════════════════════════
