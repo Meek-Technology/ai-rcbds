@@ -144,6 +144,39 @@ function showModal(params) {
         `;
     }
 
+    // ── Multi-load display ──
+    if (params.per_span_loads && params.per_span_loads.length > 0) {
+        html += `<div class="param-item full-width"><span class="param-label">Per-Span Loads</span><div style="font-size: 0.9em;">`;
+        params.per_span_loads.forEach((spanLoads, idx) => {
+            const letterLeft = String.fromCharCode(65 + idx);
+            const letterRight = String.fromCharCode(66 + idx);
+            html += `<strong>Span ${letterLeft}${letterRight}:</strong><ul>`;
+            spanLoads.forEach(ld => {
+                if (ld.type === "udl") html += `<li>UDL: ${ld.w} kN/m</li>`;
+                if (ld.type === "point_load") html += `<li>Point Load: ${ld.P} kN at ${ld.a}m</li>`;
+            });
+            html += `</ul>`;
+        });
+        html += `</div></div>`;
+    } else if (params.loads && params.loads.length > 0) {
+        html += `<div class="param-item full-width"><span class="param-label">Combined Loads</span><ul>`;
+        params.loads.forEach(ld => {
+            if (ld.type === "udl") {
+                let text = `UDL: ${ld.w} kN/m`;
+                if (ld.start !== undefined && ld.end !== undefined) {
+                    text += ` (from ${ld.start}m to ${ld.end}m)`;
+                }
+                html += `<li>${text}</li>`;
+            }
+            if (ld.type === "point_load") {
+                let text = `Point Load: ${ld.P} kN`;
+                if (ld.a !== undefined) text += ` at ${ld.a}m`;
+                html += `<li>${text}</li>`;
+            }
+        });
+        html += `</ul></div>`;
+    }
+
     grid.innerHTML = html;
 
     // Show modal
@@ -630,14 +663,28 @@ function drawBeamDiagram(input) {
     }
 
     // ── Draw Load ──
-    if (input.load_type === "udl") {
-        drawUDL(ctx, startX, freeEndX, beamY, input.load);
-    } else if (input.load_type === "point_load") {
-        const pos = input.load_position || input.span / 2;
-        const px = startX + (pos / totalLen) * beamLen;
-        drawPointLoad(ctx, px, beamY, input.load);
-    } else if (input.load_type === "triangular") {
-        drawTriangularLoad(ctx, startX, freeEndX, beamY, input.load);
+    const loads_arr = input.loads || [];
+    if (loads_arr.length > 0) {
+        loads_arr.forEach(ld => {
+            if (ld.type === "udl") {
+                const sX = ld.start !== undefined ? startX + (ld.start / totalLen) * beamLen : startX;
+                const eX = ld.end !== undefined ? startX + (ld.end / totalLen) * beamLen : freeEndX;
+                drawUDL(ctx, sX, eX, beamY, ld.w);
+            } else if (ld.type === "point_load") {
+                const pos = ld.a !== undefined ? ld.a : input.span / 2;
+                const px = startX + (pos / totalLen) * beamLen;
+                drawPointLoad(ctx, px, beamY, ld.P);
+            }
+        });
+    } else {
+        // Fallback for older format
+        if (input.load_type === "udl") {
+            drawUDL(ctx, startX, freeEndX, beamY, input.load);
+        } else if (input.load_type === "point_load") {
+            const pos = input.load_position || input.span / 2;
+            const px = startX + (pos / totalLen) * beamLen;
+            drawPointLoad(ctx, px, beamY, input.load);
+        }
     }
 
     // ── Labels ──

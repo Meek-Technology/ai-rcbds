@@ -25,18 +25,6 @@ def extract_parameters(text):
     fixed_start_match = re.search(r'fixed\s+(?:at\s+)?(?:A|start|left|first)', text, re.IGNORECASE)
     fixed_end_match = re.search(r'fixed\s+(?:at\s+)?(?:end|right|last|D|E|F)', text, re.IGNORECASE)
 
-
-    # ── Load value (e.g., "25kN/m" or "load 25kN/m" or "50kN" for point load) ──
-    load_match = re.search(r'(\d+\.?\d*)\s*kN/?m', text, re.IGNORECASE) or \
-                 re.search(r'(?:load|udl)\s*(?:of\s*)?(\d+\.?\d*)', text, re.IGNORECASE)
-
-    # ── Point load value (e.g., "point load of 50kN" or "50kN point load") ──
-    point_load_match = re.search(r'point\s*load\s*(?:of\s*)?(\d+\.?\d*)\s*kN', text, re.IGNORECASE) or \
-                       re.search(r'(\d+\.?\d*)\s*kN\s*point\s*load', text, re.IGNORECASE)
-
-    # ── Load position for point load (e.g., "at 3m" or "at distance 3m") ──
-    load_position_match = re.search(r'(?:at|at\s+distance)\s+(\d+\.?\d*)\s*m', text, re.IGNORECASE)
-
     # ── Concrete strength (e.g., fcu 25 or concrete grade 30) ──
     fcu_match = re.search(r'(?:fcu|fck|concrete\s+grade|grade\s+of\s+concrete)\s*(\d+)', text, re.IGNORECASE)
 
@@ -54,9 +42,15 @@ def extract_parameters(text):
         text, re.IGNORECASE
     )
 
-    # ── Loading type ──
-    load_type_match = re.search(
-        r'(point\s+load|udl|uniformly\s+distributed|triangular(?:\s+load)?)',
+    # ── Overhang length (e.g., "overhang BC of 2m", "overhang of 2m", "overhang 2m", "overhang: 2m") ──
+    overhang_match = re.search(
+        r'overhang(?:\s*[:=\-]?\s*(?:\w+\s+){0,3})?(?:of\s+)?(\d+\.?\d*)\s*m',
+        text, re.IGNORECASE
+    )
+
+    # ── Slab loading (e.g., "slab load 15kN/m" or "slab loading of 20") ──
+    slab_load_match = re.search(
+        r'slab\s+load(?:ing)?\s*(?:of\s*)?(\d+\.?\d*)\s*(?:kN/?m)?',
         text, re.IGNORECASE
     )
 
@@ -67,18 +61,6 @@ def extract_parameters(text):
     )
     support_right_match = re.search(
         r'(?:right|end|second)\s+(?:support\s+)?(?:is\s+)?(?:a\s+)?(roller|pinned|fixed|free)',
-        text, re.IGNORECASE
-    )
-
-    # ── Overhang length (e.g., "overhang BC of 2m", "overhang of 2m", "overhang 2m", "overhang: 2m") ──
-    overhang_match = re.search(
-        r'overhang(?:\s*[:=\-]?\s*(?:\w+\s+){0,3})?(?:of\s+)?(\d+\.?\d*)\s*m',
-        text, re.IGNORECASE
-    )
-
-    # ── Slab loading (e.g., "slab load 15kN/m" or "slab loading of 20") ──
-    slab_load_match = re.search(
-        r'slab\s+load(?:ing)?\s*(?:of\s*)?(\d+\.?\d*)\s*(?:kN/?m)?',
         text, re.IGNORECASE
     )
 
@@ -105,27 +87,46 @@ def extract_parameters(text):
     if overhang_match:
         beam_type = "overhang"
 
-    # ── Determine load type ──
-    load_type = "udl"
-    if load_type_match:
-        raw = load_type_match.group(1).lower().strip()
-        if "point" in raw:
-            load_type = "point_load"
-        elif "triangular" in raw:
-            load_type = "triangular"
-        else:
-            load_type = "udl"
+    # ═══════════════════════════════════════════════════
+    #  MULTIPLE LOAD EXTRACTION
+    # ═══════════════════════════════════════════════════
 
-    # If a point load value was explicitly matched, override load_type
-    if point_load_match:
+    loads_list = _extract_loads(text)
+
+    # ── Determine legacy load_type from loads_list ──
+    has_udl = any(ld["type"] == "udl" for ld in loads_list)
+    has_point = any(ld["type"] == "point_load" for ld in loads_list)
+
+    if has_udl and has_point:
+        load_type = "combined"
+    elif has_point and not has_udl:
         load_type = "point_load"
+    else:
+        load_type = "udl"
 
-    # ── Determine load value ──
+    # ── Legacy single-load values for backward compatibility ──
     load_value = None
-    if load_type == "point_load" and point_load_match:
-        load_value = float(point_load_match.group(1))
-    elif load_match:
-        load_value = float(load_match.group(1))
+    point_load_value = 0
+    load_pos = None
+
+    for ld in loads_list:
+        if ld["type"] == "udl" and load_value is None:
+            load_value = ld["w"]
+        if ld["type"] == "point_load":
+            if point_load_value == 0:
+                point_load_value = ld["P"]
+                load_pos = ld.get("a")
+            if load_value is None:
+                load_value = ld["P"]
+
+    # Fallback: try legacy single UDL regex if no loads found
+    if not loads_list:
+        single_load_match = re.search(r'(\d+\.?\d*)\s*kN/?m', text, re.IGNORECASE) or \
+                            re.search(r'(?:load|udl)\s*(?:of\s*)?(\d+\.?\d*)', text, re.IGNORECASE)
+        if single_load_match:
+            load_value = float(single_load_match.group(1))
+            loads_list = [{"type": "udl", "w": load_value}]
+            load_type = "udl"
 
     # ── Determine support conditions ──
     # Defaults based on beam type
@@ -145,15 +146,13 @@ def extract_parameters(text):
     support_left = support_left_match.group(1).lower() if support_left_match else default_left
     support_right = support_right_match.group(1).lower() if support_right_match else default_right
 
-    # ── Determine load position ──
-    load_pos = float(load_position_match.group(1)) if load_position_match else None
+    # ── Determine load position and overhang ──
     overhang_len = float(overhang_match.group(1)) if overhang_match else None
+    span_val = float(span_match.group(1)) if span_match else None
 
     # "free end" detection: if load is at the free end of an overhang,
     # load_position = span + overhang_length
     free_end_match = re.search(r'free\s+end', text, re.IGNORECASE)
-    span_val = float(span_match.group(1)) if span_match else None
-
     if beam_type == "overhang" and free_end_match and overhang_len and span_val:
         load_pos = span_val + overhang_len
 
@@ -193,11 +192,16 @@ def extract_parameters(text):
         if fixed_end_match:
             supports_list[-1] = "fixed"
 
+    # ── Per-span loads for continuous beams ──
+    per_span_loads = None
+    if beam_type == "continuous" and spans_list:
+        per_span_loads = _extract_per_span_loads(text, len(spans_list))
+
     return {
         "span": span_val,
         "load": load_value,
         "slab_load": float(slab_load_match.group(1)) if slab_load_match else None,
-        "point_load": float(point_load_match.group(1)) if point_load_match else 0,
+        "point_load": point_load_value,
         "fcu": float(fcu_match.group(1)) if fcu_match else None,
         "fy": float(fy_value) if fy_value else None,
         "wall_height": float(height_match.group(1)) if height_match else None,
@@ -211,7 +215,142 @@ def extract_parameters(text):
         "overhang_length": overhang_len,
         "spans": spans_list,
         "supports": supports_list,
+        "loads": loads_list if loads_list else None,
+        "per_span_loads": per_span_loads,
     }
+
+
+def _extract_loads(text):
+    """
+    Extract multiple load definitions from a prompt.
+    Returns a list of load dicts: [{"type": "udl", "w": ...}, {"type": "point_load", "P": ..., "a": ...}]
+    """
+    loads = []
+
+    # ── Extract all point loads with positions ──
+    # Patterns: "point load 30kN at 2m", "point load of 30kN at 2m", "30kN point load at 2m"
+    # Also: "point loads 25kN at 2m and 40kN at 6m"
+    pl_patterns = [
+        # "point load [of] 30kN at 2m"
+        r'point\s+loads?\s*(?:of\s*)?(\d+\.?\d*)\s*kN\s*(?:at\s+(?:distance\s+)?(\d+\.?\d*)\s*m)?',
+        # "30kN point load at 2m"
+        r'(\d+\.?\d*)\s*kN\s*(?:point\s+load)\s*(?:at\s+(?:distance\s+)?(\d+\.?\d*)\s*m)?',
+    ]
+
+    # Find all point load matches
+    for pat in pl_patterns:
+        for m in re.finditer(pat, text, re.IGNORECASE):
+            P = float(m.group(1))
+            a = float(m.group(2)) if m.group(2) else None
+            loads.append({"type": "point_load", "P": P, "a": a})
+
+    # Deduplicate point loads (same P value from different regex patterns)
+    seen_pl = set()
+    unique_pl = []
+    for ld in loads:
+        key = (ld["P"], ld.get("a"))
+        if key not in seen_pl:
+            seen_pl.add(key)
+            unique_pl.append(ld)
+    loads = unique_pl
+
+    # ── Extract UDL(s) ──
+    # Patterns: "UDL 20kN/m", "UDL of 20kN/m", "20kN/m UDL"
+    # Partial: "UDL 20kN/m from 0 to 3m"
+    udl_matches = list(re.finditer(
+        r'(?:udl|uniformly\s+distributed(?:\s+load)?)\s*(?:of\s*)?(\d+\.?\d*)\s*kN/?m'
+        r'(?:\s+from\s+(\d+\.?\d*)\s*m?\s*to\s+(\d+\.?\d*)\s*m)?',
+        text, re.IGNORECASE
+    ))
+
+    # Also match "20kN/m UDL" pattern
+    udl_matches2 = list(re.finditer(
+        r'(\d+\.?\d*)\s*kN/m\s*(?:udl|uniformly)',
+        text, re.IGNORECASE
+    ))
+
+    # Simple "XX kN/m" without "point load" context — only if no explicit UDL match above
+    # and no point loads matched for that number
+    point_load_values = {ld["P"] for ld in loads}
+
+    if not udl_matches and not udl_matches2:
+        # Look for generic kN/m values that aren't point loads
+        generic_udl = re.findall(r'(\d+\.?\d*)\s*kN/m', text, re.IGNORECASE)
+        for val_str in generic_udl:
+            val = float(val_str)
+            if val not in point_load_values:
+                loads.append({"type": "udl", "w": val})
+                break  # Only take first generic UDL
+
+    for m in udl_matches:
+        w = float(m.group(1))
+        start = float(m.group(2)) if m.group(2) else None
+        end = float(m.group(3)) if m.group(3) else None
+        ld = {"type": "udl", "w": w}
+        if start is not None:
+            ld["start"] = start
+        if end is not None:
+            ld["end"] = end
+        loads.append(ld)
+
+    for m in udl_matches2:
+        w = float(m.group(1))
+        # Check it's not already captured
+        if not any(ld["type"] == "udl" and ld["w"] == w for ld in loads):
+            loads.append({"type": "udl", "w": w})
+
+    return loads
+
+
+def _extract_per_span_loads(text, n_spans):
+    """
+    Extract per-span load definitions for continuous beams.
+    Patterns like: "span AB has UDL 20kN/m", "span BC carries point load 30kN at 2m"
+
+    Returns: list of lists, one per span. Each inner list contains load dicts.
+             Returns None if no per-span definitions found.
+    """
+    span_labels = []
+    for i in range(n_spans):
+        left = chr(65 + i)
+        right = chr(65 + i + 1)
+        span_labels.append(f"{left}{right}")
+
+    per_span = [[] for _ in range(n_spans)]
+    found_any = False
+
+    for idx, label in enumerate(span_labels):
+        # Pattern: "span AB [has/carries/with] UDL 20kN/m [and point load 30kN at 2m]"
+        span_pattern = re.compile(
+            r'span\s+' + label + r'\s+(?:has|carries|with|:)?\s*(.*?)(?=span\s+[A-Z]{2}|$)',
+            re.IGNORECASE | re.DOTALL
+        )
+        span_match = span_pattern.search(text)
+        if not span_match:
+            continue
+
+        span_text = span_match.group(1)
+
+        # Extract UDLs from this span's text
+        udl_m = re.search(r'(?:udl|uniformly)\s*(?:of\s*)?(\d+\.?\d*)\s*kN/?m', span_text, re.IGNORECASE)
+        if not udl_m:
+            udl_m = re.search(r'(\d+\.?\d*)\s*kN/m', span_text, re.IGNORECASE)
+
+        if udl_m:
+            per_span[idx].append({"type": "udl", "w": float(udl_m.group(1))})
+            found_any = True
+
+        # Extract point loads from this span's text
+        for pl_m in re.finditer(
+            r'point\s+loads?\s*(?:of\s*)?(\d+\.?\d*)\s*kN\s*(?:at\s+(\d+\.?\d*)\s*m)?',
+            span_text, re.IGNORECASE
+        ):
+            P = float(pl_m.group(1))
+            a = float(pl_m.group(2)) if pl_m.group(2) else None
+            per_span[idx].append({"type": "point_load", "P": P, "a": a})
+            found_any = True
+
+    return per_span if found_any else None
 
 
 def apply_defaults(params):
@@ -238,6 +377,8 @@ def apply_defaults(params):
         "overhang_length": params.get("overhang_length"),
         "spans": params.get("spans"),
         "supports": params.get("supports"),
+        "loads": params.get("loads"),
+        "per_span_loads": params.get("per_span_loads"),
     }
 
 

@@ -194,6 +194,29 @@ def generate_calc_sheet(data, filename="calc_sheet.pdf"):
          "Wall Line Load", f"{wall_ll} kN/m" if has_wall else "—"],
         ["p1 = Point Load", f"{res.get('p1_point_load', 0)} kN", "", ""],
     ]
+
+    # Show multi-load combinations if present
+    if inp.get("per_span_loads"):
+        for i, span_loads in enumerate(inp["per_span_loads"]):
+            label_L = chr(65 + i)
+            label_R = chr(66 + i)
+            desc_list = []
+            for ld in span_loads:
+                if ld.get("type") == "udl": desc_list.append(f"UDL {ld.get('w')}kN/m")
+                elif ld.get("type") == "point_load": desc_list.append(f"PL {ld.get('P')}kN@{ld.get('a')}m")
+            load_rows.append([_b(f"Span {label_L}{label_R} Loads"), " + ".join(desc_list), "", ""])
+    elif inp.get("loads"):
+        desc_list = []
+        for ld in inp["loads"]:
+            if ld.get("type") == "udl":
+                if ld.get("start") is not None and ld.get("end") is not None:
+                    desc_list.append(f"UDL {ld.get('w')} ({ld.get('start')}-{ld.get('end')}m)")
+                else:
+                    desc_list.append(f"UDL {ld.get('w')}kN/m")
+            elif ld.get("type") == "point_load":
+                desc_list.append(f"PL {ld.get('P')}kN@{ld.get('a')}m")
+        load_rows.append([_b("Combined Loads"), " + ".join(desc_list), "", ""])
+
     lt = Table(load_rows, colWidths=[pw * 0.25, pw * 0.25, pw * 0.25, pw * 0.25])
     lt.setStyle(_grid_style(header_row=True))
     content.append(lt)

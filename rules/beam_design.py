@@ -424,6 +424,259 @@ def _compute_point(x, load, span, beam_type, load_type, load_position, overhang_
 
 
 # ──────────────────────────────────────────────
+#  MULTI-LOAD Superposition Functions
+# ──────────────────────────────────────────────
+
+def design_moment_multi(loads_list, span, beam_type="simply_supported",
+                        overhang_length=0, beam_self_weight_udl=0):
+    """
+    Calculate total design moment from multiple loads using superposition.
+
+    loads_list: list of dicts, each with:
+        {"type": "udl", "w": <kN/m>, "start": <m>, "end": <m>}
+        {"type": "point_load", "P": <kN>, "a": <m>}
+
+    beam_self_weight_udl: additional full-span UDL from self-weight + wall (kN/m)
+
+    Returns dict with M_total and per-load contributions.
+    """
+    contributions = []
+    M_total = 0.0
+
+    # Add beam self-weight as full-span UDL
+    if beam_self_weight_udl > 0:
+        M_sw = bending_moment(beam_self_weight_udl, span, beam_type, "udl",
+                              overhang_length=overhang_length)
+        contributions.append({"desc": "Self-weight + wall UDL", "M": round(M_sw, 2)})
+        M_total += M_sw
+
+    for i, ld in enumerate(loads_list):
+        if ld["type"] == "udl":
+            w = ld["w"]
+            start = ld.get("start")
+            end = ld.get("end")
+
+            if start is not None and end is not None:
+                # Partial UDL
+                M_i = _partial_udl_moment(w, start, end, span, beam_type, overhang_length)
+            else:
+                # Full-span UDL
+                M_i = bending_moment(w, span, beam_type, "udl",
+                                     overhang_length=overhang_length)
+            label = f"UDL {w} kN/m"
+            if start is not None:
+                label += f" ({start}m–{end}m)"
+
+        elif ld["type"] == "point_load":
+            P = ld["P"]
+            a = ld.get("a") or (span / 2)
+            M_i = bending_moment(P, span, beam_type, "point_load", a, overhang_length)
+            label = f"Point load {P} kN at {a}m"
+
+        else:
+            continue
+
+        contributions.append({"desc": label, "M": round(M_i, 2)})
+        M_total += M_i
+
+    return {
+        "M_total": round(M_total, 2),
+        "contributions": contributions,
+    }
+
+
+def max_shear_force_multi(loads_list, span, beam_type="simply_supported",
+                          overhang_length=0, beam_self_weight_udl=0):
+    """
+    Calculate maximum shear force from multiple loads using superposition.
+    """
+    V_total = 0.0
+
+    if beam_self_weight_udl > 0:
+        V_total += max_shear_force(beam_self_weight_udl, span, beam_type, "udl",
+                                    overhang_length=overhang_length)
+
+    for ld in loads_list:
+        if ld["type"] == "udl":
+            w = ld["w"]
+            start = ld.get("start")
+            end = ld.get("end")
+            if start is not None and end is not None:
+                V_total += _partial_udl_max_shear(w, start, end, span, beam_type, overhang_length)
+            else:
+                V_total += max_shear_force(w, span, beam_type, "udl",
+                                            overhang_length=overhang_length)
+        elif ld["type"] == "point_load":
+            P = ld["P"]
+            a = ld.get("a") or (span / 2)
+            V_total += max_shear_force(P, span, beam_type, "point_load", a, overhang_length)
+
+    return round(V_total, 3)
+
+
+def generate_diagrams_multi(loads_list, span, beam_type="simply_supported",
+                            overhang_length=0, beam_self_weight_udl=0):
+    """
+    Generate superposed V(x), M(x), load(x) arrays from multiple loads.
+    Uses superposition: compute each load independently and sum.
+    """
+    total_length = span + overhang_length if beam_type == "overhang" else span
+    steps = 40
+    dx = total_length / steps
+
+    # Initialize arrays
+    x_vals = [round(i * dx, 3) for i in range(steps + 1)]
+    shear_total = [0.0] * (steps + 1)
+    moment_total = [0.0] * (steps + 1)
+    load_total = [0.0] * (steps + 1)
+
+    # ── Self-weight / wall UDL (always full-span) ──
+    if beam_self_weight_udl > 0:
+        for j, x in enumerate(x_vals):
+            s, m, l = _compute_point(x, beam_self_weight_udl, span, beam_type, "udl",
+                                      span / 2, overhang_length)
+            shear_total[j] += s
+            moment_total[j] += m
+            load_total[j] += l
+
+    # ── Each user load ──
+    for ld in loads_list:
+        if ld["type"] == "udl":
+            w = ld["w"]
+            start = ld.get("start")
+            end = ld.get("end")
+
+            if start is not None and end is not None:
+                # Partial UDL: compute analytically
+                for j, x in enumerate(x_vals):
+                    s, m, l = _compute_partial_udl_point(x, w, start, end, span,
+                                                          beam_type, overhang_length)
+                    shear_total[j] += s
+                    moment_total[j] += m
+                    load_total[j] += l
+            else:
+                # Full-span UDL
+                for j, x in enumerate(x_vals):
+                    s, m, l = _compute_point(x, w, span, beam_type, "udl",
+                                              span / 2, overhang_length)
+                    shear_total[j] += s
+                    moment_total[j] += m
+                    load_total[j] += l
+
+        elif ld["type"] == "point_load":
+            P = ld["P"]
+            a = ld.get("a") or (span / 2)
+            for j, x in enumerate(x_vals):
+                s, m, _ = _compute_point(x, P, span, beam_type, "point_load",
+                                          a, overhang_length)
+                shear_total[j] += s
+                moment_total[j] += m
+
+    # Round results
+    shear_total = [round(v, 3) for v in shear_total]
+    moment_total = [round(v, 3) for v in moment_total]
+    load_total = [round(v, 3) for v in load_total]
+
+    return x_vals, shear_total, moment_total, load_total
+
+
+def _partial_udl_moment(w, start, end, span, beam_type, overhang_length=0):
+    """
+    Maximum bending moment for a partial UDL from 'start' to 'end' on a simply supported beam.
+    Uses equilibrium: R_A = w*(end-start)*(span - (start+end)/2) / span
+    M_max is found at the point of zero shear within the loaded region.
+    """
+    if beam_type != "simply_supported":
+        # For non-simply-supported, approximate using full-span fraction
+        frac = (end - start) / span
+        full_M = bending_moment(w, span, beam_type, "udl", overhang_length=overhang_length)
+        return full_M * frac
+
+    c = end - start  # length of loaded region
+    centre = (start + end) / 2
+    R_A = w * c * (span - centre) / span
+
+    # Zero shear at x0 from A (within loaded region)
+    # V(x) = R_A - w*(x - start) = 0 for start <= x <= end
+    x0 = start + R_A / w
+    if x0 < start:
+        x0 = start
+    if x0 > end:
+        x0 = end
+
+    # Moment at x0
+    M = R_A * x0 - w * (x0 - start)**2 / 2
+    return abs(M)
+
+
+def _partial_udl_max_shear(w, start, end, span, beam_type, overhang_length=0):
+    """Max shear from a partial UDL on a simply supported beam."""
+    if beam_type != "simply_supported":
+        frac = (end - start) / span
+        full_V = max_shear_force(w, span, beam_type, "udl", overhang_length=overhang_length)
+        return full_V * frac
+
+    c = end - start
+    centre = (start + end) / 2
+    R_A = w * c * (span - centre) / span
+    R_B = w * c - R_A
+    return max(abs(R_A), abs(R_B))
+
+
+def _compute_partial_udl_point(x, w, start, end, span, beam_type, overhang_length=0):
+    """
+    Compute V, M, load_intensity at position x for a partial UDL
+    on a simply supported beam.
+    """
+    if beam_type != "simply_supported":
+        # Approximate: only apply load intensity within [start, end]
+        if start <= x <= end:
+            load_val = w
+        else:
+            load_val = 0
+        # Use full-span method with zero outside range
+        c = end - start
+        centre = (start + end) / 2
+        total_load = w * c
+        R_A = total_load * (span - centre) / span
+
+        if x < start:
+            V = R_A
+            M = R_A * x
+        elif x <= end:
+            V = R_A - w * (x - start)
+            M = R_A * x - w * (x - start)**2 / 2
+        else:
+            R_B = total_load - R_A
+            V = R_A - w * c  # = -R_B
+            M = R_A * x - w * c * (x - start - c / 2)
+        return V, M, load_val
+
+    # Simply supported
+    c = end - start
+    centre = (start + end) / 2
+    total_load = w * c
+    R_A = total_load * (span - centre) / span
+
+    if start <= x <= end:
+        load_val = w
+    else:
+        load_val = 0
+
+    if x < start:
+        V = R_A
+        M = R_A * x
+    elif x <= end:
+        V = R_A - w * (x - start)
+        M = R_A * x - w * (x - start)**2 / 2
+    else:
+        V = R_A - total_load  # = -R_B
+        M = R_A * x - total_load * (x - centre)
+
+    return V, M, load_val
+
+
+# ──────────────────────────────────────────────
 #  Shear Force (single point — legacy)
 # ──────────────────────────────────────────────
 

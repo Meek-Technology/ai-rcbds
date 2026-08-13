@@ -135,6 +135,30 @@ def generate_pdf(data, filename="beam_report.pdf"):
 
     load_data.append(["w — Total UDL", f"{res.get('w_total_udl', 0)} kN/m"])
     load_data.append(["p1 — Point Load", f"{res.get('p1_point_load', 0)} kN"])
+    
+    # Show multi-load combinations if present
+    inp = data.get("input", {})
+    if inp.get("per_span_loads"):
+        for i, span_loads in enumerate(inp["per_span_loads"]):
+            label_L = chr(65 + i)
+            label_R = chr(66 + i)
+            desc_list = []
+            for ld in span_loads:
+                if ld.get("type") == "udl": desc_list.append(f"UDL {ld.get('w')}kN/m")
+                elif ld.get("type") == "point_load": desc_list.append(f"PL {ld.get('P')}kN at {ld.get('a')}m")
+            load_data.append([f"Span {label_L}{label_R} Loads", " + ".join(desc_list)])
+    elif inp.get("loads"):
+        desc_list = []
+        for ld in inp["loads"]:
+            if ld.get("type") == "udl":
+                if ld.get("start") is not None and ld.get("end") is not None:
+                    desc_list.append(f"Partial UDL {ld.get('w')}kN/m ({ld.get('start')}m–{ld.get('end')}m)")
+                else:
+                    desc_list.append(f"UDL {ld.get('w')}kN/m")
+            elif ld.get("type") == "point_load":
+                desc_list.append(f"PL {ld.get('P')}kN at {ld.get('a')}m")
+        load_data.append(["Combined Loads", " + ".join(desc_list)])
+
     _add_table(content, load_data)
 
     # Engineering note

@@ -18,11 +18,29 @@ def _load_terms(load_info, L):
         left_term  = 6·A·ā / L  (first moment about LEFT support)
         right_term = 6·A·b̄ / L  (first moment about RIGHT support)
     
-    load_info: dict with keys:
+    load_info: dict, or list of dicts. Each dict has:
         {"type": "udl", "w": <value>}
         {"type": "point_load", "P": <value>, "a": <distance from left>}
         {"type": "none"}  (no load on this span)
+    
+    If load_info is a list, loading terms are summed (superposition).
     """
+    # Handle list of loads (multiple loads per span)
+    if isinstance(load_info, list):
+        total_left = 0.0
+        total_right = 0.0
+        for single_load in load_info:
+            lt, rt = _load_terms_single(single_load, L)
+            total_left += lt
+            total_right += rt
+        return total_left, total_right
+
+    # Single load dict (backward compatible)
+    return _load_terms_single(load_info, L)
+
+
+def _load_terms_single(load_info, L):
+    """Calculate loading terms for a single load on a span."""
     if load_info.get("type") == "udl":
         w = load_info["w"]
         # Parabolic free BMD: symmetric
@@ -31,8 +49,8 @@ def _load_terms(load_info, L):
 
     elif load_info.get("type") == "point_load":
         P = load_info["P"]
-        a = load_info["a"]       # distance from left support
-        b = L - a                # distance from right support
+        a = load_info.get("a", L / 2)  # default to midspan
+        b = L - a
         left_term = P * a * (L**2 - a**2) / L
         right_term = P * b * a * (2 * L - a) / L
         return left_term, right_term
@@ -255,19 +273,24 @@ def _compute_reactions(spans, loads, moments):
         load = loads[i]
 
         # Load moment about left and right supports (for free beam)
-        if load.get("type") == "udl":
-            w = load["w"]
-            load_moment_about_right = w * L**2 / 2  # total load * L/2
-            load_moment_about_left = w * L**2 / 2
-        elif load.get("type") == "point_load":
-            P = load["P"]
-            a = load["a"]
-            b = L - a
-            load_moment_about_right = P * b   # P × distance from right
-            load_moment_about_left = P * a    # P × distance from left
-        else:
-            load_moment_about_right = 0.0
-            load_moment_about_left = 0.0
+        load_list = loads[i]
+        if not isinstance(load_list, list):
+            load_list = [load_list]
+
+        load_moment_about_right = 0.0
+        load_moment_about_left = 0.0
+
+        for ld in load_list:
+            if ld.get("type") == "udl":
+                w = ld["w"]
+                load_moment_about_right += w * L**2 / 2
+                load_moment_about_left += w * L**2 / 2
+            elif ld.get("type") == "point_load":
+                P = ld["P"]
+                a = ld.get("a", L / 2)
+                b = L - a
+                load_moment_about_right += P * b
+                load_moment_about_left += P * a
 
         # ΣM_right = 0: R_left·L = load_moment_about_right + M_right - M_left
         R_left = (load_moment_about_right + M_right - M_left) / L
@@ -322,10 +345,10 @@ def _generate_span_diagrams(spans, loads, moments, reactions):
             V, M = _compute_vm_at_x(x_local, L, load, V_start, M_left)
 
             load_val = 0.0
-            if load.get("type") == "udl":
-                load_val = load["w"]
-            elif load.get("type") == "point_load":
-                load_val = 0.0
+            load_list = load if isinstance(load, list) else [load]
+            for ld in load_list:
+                if ld.get("type") == "udl":
+                    load_val += ld["w"]
 
             x_vals.append(x_global)
             shear_vals.append(round(V, 4))
@@ -360,37 +383,42 @@ def _shear_at_support(support_idx, spans, loads, reactions):
     # Subtract loads from previous spans
     for k in range(support_idx):
         L = spans[k]
-        load = loads[k]
-        if load.get("type") == "udl":
-            V -= load["w"] * L
-        elif load.get("type") == "point_load":
-            V -= load["P"]
+        load_list = loads[k]
+        if not isinstance(load_list, list):
+            load_list = [load_list]
+        for ld in load_list:
+            if ld.get("type") == "udl":
+                V -= ld["w"] * L
+            elif ld.get("type") == "point_load":
+                V -= ld["P"]
 
     return V
 
 
-def _compute_vm_at_x(x, L, load, V_start, M_left):
+def _compute_vm_at_x(x, L, loads, V_start, M_left):
     """
     Compute V and M at distance x from the left support of a single span.
     V_start: shear just after the left support
     M_left: moment at the left support
     """
-    if load.get("type") == "udl":
-        w = load["w"]
-        V = V_start - w * x
-        M = M_left + V_start * x - w * x**2 / 2
-    elif load.get("type") == "point_load":
-        P = load["P"]
-        a = load["a"]
-        if x < a:
-            V = V_start
-            M = M_left + V_start * x
-        else:
-            V = V_start - P
-            M = M_left + V_start * x - P * (x - a)
-    else:
-        V = V_start
-        M = M_left + V_start * x
+    load_list = loads if isinstance(loads, list) else [loads]
+    V_load_drop = 0.0
+    M_load_drop = 0.0
+
+    for ld in load_list:
+        if ld.get("type") == "udl":
+            w = ld["w"]
+            V_load_drop += w * x
+            M_load_drop += w * x**2 / 2
+        elif ld.get("type") == "point_load":
+            P = ld["P"]
+            a = ld.get("a", L / 2)
+            if x >= a:
+                V_load_drop += P
+                M_load_drop += P * (x - a)
+
+    V = V_start - V_load_drop
+    M = M_left + V_start * x - M_load_drop
 
     return V, M
 

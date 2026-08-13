@@ -10,7 +10,8 @@ from rules.beam_design import (
     generate_diagrams, max_shear_force, design_loads, design_moment,
     design_bending_reinforcement, design_reinforcement_with_resize, effective_depth,
     check_deflection_bs8110, deflection_check_with_fix,
-    design_shear_reinforcement
+    design_shear_reinforcement, design_moment_multi, max_shear_force_multi,
+    generate_diagrams_multi
 )
 from api.report import generate_pdf
 from api.calc_sheet import generate_calc_sheet
@@ -89,12 +90,39 @@ def predict(data: dict):
         p1 = loads_data["p1_point_load"]
 
         # Build per-span loading list
-        span_loads = []
-        for s in spans_list:
-            if load_type == "point_load" and p1 > 0:
-                span_loads.append({"type": "point_load", "P": p1, "a": s / 2})
-            else:
-                span_loads.append({"type": "udl", "w": w})
+        span_loads = params.get("per_span_loads")
+        if not span_loads:
+            span_loads = []
+            loads_arr = params.get("loads") or []
+            for s in spans_list:
+                span_load_list = []
+                # Fallback to single/mixed loads applied equally to all spans
+                if loads_arr:
+                    span_load_list = [dict(ld) for ld in loads_arr]
+                    # Update point load position to midspan if not specified or out of bounds
+                    for ld in span_load_list:
+                        if ld.get("type") == "point_load" and (ld.get("a") is None or ld.get("a") > s):
+                            ld["a"] = s / 2
+                else:
+                    if load_type == "point_load" and p1 > 0:
+                        span_load_list.append({"type": "point_load", "P": p1, "a": s / 2})
+                    else:
+                        span_load_list.append({"type": "udl", "w": w})
+                
+                # Always add beam self-weight UDL
+                # Wait, w total already has self-weight. For multi-load we might need to add it separately if not included.
+                # If using generic loads_arr, it only has the user loads. We must add the dead loads (n2+n3).
+                dead_udl = loads_data["n2_beam_self_weight"] + loads_data["n3_wall_load"]
+                if dead_udl > 0:
+                    span_load_list.append({"type": "udl", "w": dead_udl})
+
+                span_loads.append(span_load_list)
+        else:
+            # If using parsed per-span loads, ensure dead loads are added to each span
+            dead_udl = loads_data["n2_beam_self_weight"] + loads_data["n3_wall_load"]
+            for s_idx in range(len(span_loads)):
+                if dead_udl > 0:
+                    span_loads[s_idx].append({"type": "udl", "w": dead_udl})
 
         # Solve using Three-Moment Theorem
         result = solve_three_moment(spans_list, span_loads, supports_list)
@@ -328,7 +356,16 @@ def predict(data: dict):
         p1 = loads["p1_point_load"]    # Point load (separate)
 
         # ── Step 3: Calculate design moment (M_udl + M_point) ──
-        moments = design_moment(w, span, beam_type, p1, load_position, overhang_length)
+        loads_arr = params.get("loads") or []
+        if not loads_arr:
+            # Fallback to single load
+            if load_type == "point_load" and p1 > 0:
+                loads_arr.append({"type": "point_load", "P": p1, "a": load_position})
+            else:
+                loads_arr.append({"type": "udl", "w": w - (loads["n2_beam_self_weight"] + loads["n3_wall_load"])})
+
+        dead_udl = loads["n2_beam_self_weight"] + loads["n3_wall_load"]
+        moments = design_moment_multi(loads_arr, span, beam_type, overhang_length, dead_udl)
         M_total = moments["M_total"]
 
         # ── Step 4: BS 8110 Bending Reinforcement Design ──
@@ -373,21 +410,10 @@ def predict(data: dict):
     deflection_status = defl_result["status"]
 
     # ── Step 6: Shear & diagrams ──
-    shear = max_shear_force(w, span, beam_type, "udl", overhang_length=overhang_length)
-    x, shear_curve, moment_curve, load_curve = generate_diagrams(
-        w, span, beam_type, "udl", overhang_length=overhang_length
+    shear = max_shear_force_multi(loads_arr, span, beam_type, overhang_length, dead_udl)
+    x, shear_curve, moment_curve, load_curve = generate_diagrams_multi(
+        loads_arr, span, beam_type, overhang_length, dead_udl
     )
-
-    # If there's also a point load, generate combined diagrams
-    if p1 > 0:
-        shear_p = max_shear_force(p1, span, beam_type, "point_load", load_position, overhang_length)
-        shear = shear + shear_p  # Combined max shear (conservative)
-
-        # For overhang with point load and no UDL, use point load diagrams directly
-        if beam_type == "overhang" and w <= loads["n2_beam_self_weight"] + 0.01:
-            x, shear_curve, moment_curve, load_curve = generate_diagrams(
-                p1, span, beam_type, "point_load", load_position, overhang_length
-            )
 
     # ── Step 7: Shear reinforcement design ──
     shear_reinf = design_shear_reinforcement(
@@ -421,8 +447,8 @@ def predict(data: dict):
         "results": {
             "steel_area": reinf_result["As_req"],
             "bending_moment": moments["M_total"],
-            "M_udl": moments["M_udl"],
-            "M_point": moments["M_point"],
+            "M_udl": sum(c["M"] for c in moments.get("contributions", []) if "UDL" in c.get("desc", "") or "Self-weight" in c.get("desc", "")),
+            "M_point": sum(c["M"] for c in moments.get("contributions", []) if "Point load" in c.get("desc", "")),
             "max_shear_force": round(shear, 2),
             "n1_slab_load": loads["n1_slab_load"],
             "n2_beam_self_weight": loads["n2_beam_self_weight"],
