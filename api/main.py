@@ -515,10 +515,10 @@ def health_check():
 def system_info():
     return {
         "Project": "AI-RCBDS (AI Reinforced Concrete Beam Design System)",
-        "Developed by": "Engr. Micheal Shokunbi",
-        "Version": "Final Year Project",
+        "Developed by": "Engr. Micheal Shokunbi (MEEK TECHNOLOGY)",
+        "Version": "Final Year Project - Civil Engineering - FUOYE",
         "Features": [
-            "AI Machine Learning Prediction",
+            "AI Machine Learning Prediction"
             "Natural Language Prompt-Based Input",
             "Graphical Visualization (SFD, BMD, Load Diagrams)",
             "BS 8110 Factored Wall Load Calculation",
@@ -534,7 +534,7 @@ def system_info():
 @app.get("/version")
 def version():
     return {
-        "version": "2.3.1",
+        "version": "2.4.0",
         "release": "A Final Year Project",
         "year": 2026
     }
