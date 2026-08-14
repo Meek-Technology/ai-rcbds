@@ -1093,16 +1093,10 @@ function drawContinuousBeamDiagram(contData, loadValue) {
         let ldList = spanLoads[i] || [];
         if (!Array.isArray(ldList)) ldList = [ldList];
 
-        let hasUDL = false;
-        let udlTotal = 0;
+        let userUDLs = ldList.filter(ld => ld.type === "udl" && !ld.is_dead);
+        let hasUDL = userUDLs.length > 0;
+        let udlTotal = userUDLs.reduce((sum, ld) => sum + (ld.w || 0), 0);
         let plCount = 0;
-
-        for (const ld of ldList) {
-            if (ld.type === "udl") {
-                hasUDL = true;
-                udlTotal += (ld.w || 0);
-            }
-        }
 
         // Draw point loads — elevated if span has UDL
         for (const ld of ldList) {
@@ -1134,21 +1128,39 @@ function drawContinuousBeamDiagram(contData, loadValue) {
             }
         }
 
-        // Draw UDL arrows for this span
+        // Draw UDL arrows for this span if a user-applied UDL is present
         if (hasUDL) {
             const udlTopY = beamY - 40;
-            const arrowsInSpan = Math.max(4, Math.floor(contData.spans[i] * 2));
-            const arrowSpacing = spanPx / arrowsInSpan;
+            let uStartMetres = 0;
+            let uEndMetres = contData.spans[i];
+            const firstUserUDL = userUDLs[0];
+
+            const cumSpanStart = contData.spans.slice(0, i).reduce((a, b) => a + b, 0);
+            const cumSpanEnd = cumSpanStart + contData.spans[i];
+
+            if (firstUserUDL.start !== undefined && firstUserUDL.end !== undefined) {
+                const globalStart = Math.max(cumSpanStart, firstUserUDL.start);
+                const globalEnd = Math.min(cumSpanEnd, firstUserUDL.end);
+                uStartMetres = Math.max(0, globalStart - cumSpanStart);
+                uEndMetres = Math.min(contData.spans[i], globalEnd - cumSpanStart);
+            }
+
+            const udlDrawStartX = spanStartX + (uStartMetres / contData.spans[i]) * spanPx;
+            const udlDrawEndX = spanStartX + (uEndMetres / contData.spans[i]) * spanPx;
+            const drawWidth = udlDrawEndX - udlDrawStartX;
+
+            const arrowsInSpan = Math.max(4, Math.floor((uEndMetres - uStartMetres) * 2));
+            const arrowSpacing = drawWidth / (arrowsInSpan || 1);
 
             ctx.strokeStyle = "#10b981";
             ctx.lineWidth = 1.5;
             ctx.beginPath();
-            ctx.moveTo(spanStartX, udlTopY);
-            ctx.lineTo(spanEndX, udlTopY);
+            ctx.moveTo(udlDrawStartX, udlTopY);
+            ctx.lineTo(udlDrawEndX, udlTopY);
             ctx.stroke();
 
             for (let j = 0; j <= arrowsInSpan; j++) {
-                const x = spanStartX + j * arrowSpacing;
+                const x = udlDrawStartX + j * arrowSpacing;
                 ctx.beginPath();
                 ctx.moveTo(x, udlTopY);
                 ctx.lineTo(x, beamY - 2);
@@ -1164,7 +1176,7 @@ function drawContinuousBeamDiagram(contData, loadValue) {
             ctx.fillStyle = "#10b981";
             ctx.font = "bold 11px Arial";
             ctx.textAlign = "center";
-            ctx.fillText(`${udlTotal.toFixed(1)} kN/m`, (spanStartX + spanEndX) / 2, udlTopY - 6);
+            ctx.fillText(`${udlTotal.toFixed(1)} kN/m`, (udlDrawStartX + udlDrawEndX) / 2, udlTopY - 6);
         }
 
         spanStartX = spanEndX;

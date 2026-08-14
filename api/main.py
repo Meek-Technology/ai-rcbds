@@ -551,7 +551,7 @@ def _build_continuous_span_loads(params, spans_list, loads_data, load_type, w, p
 
         for s_list in span_loads:
             if dead_udl > 0:
-                s_list.append({"type": "udl", "w": dead_udl})
+                s_list.append({"type": "udl", "w": dead_udl, "is_dead": True})
         return span_loads
 
     # Try generic loads array (applied to all spans)
@@ -576,7 +576,7 @@ def _build_continuous_span_loads(params, spans_list, loads_data, load_type, w, p
                 span_load_list.append({"type": "udl", "w": w})
 
         if dead_udl > 0:
-            span_load_list.append({"type": "udl", "w": dead_udl})
+            span_load_list.append({"type": "udl", "w": dead_udl, "is_dead": True})
 
         span_loads.append(span_load_list)
 
