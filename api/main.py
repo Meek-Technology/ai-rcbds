@@ -319,6 +319,14 @@ def predict(data: dict):
     # Build user loads array ONCE before the iteration loop
     user_loads = _build_user_loads(params, load_type, load, load_position, slab_load)
 
+    # Initialize loop variables to resolve static analysis unbound warnings
+    loads = {}
+    dead_udl = 0.0
+    moments = {}
+    reinf_result = {}
+    defl_result = {}
+    defl_fixed = False
+
     # We iterate to converge on the stable beam size and its associated self-weight
     for iteration in range(3):
         # ── Step 2: Calculate factored loads (BS 8110) ──
