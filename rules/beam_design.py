@@ -59,18 +59,21 @@ def calc_wall_load(density, thickness, height):
 
 def design_loads(slab_load=0, beam_width_mm=230, beam_depth_mm=300,
                  wall_density=0, wall_thickness=0, wall_height=0,
-                 point_load=0):
+                 point_load=0, point_loads_list=None):
     """
     Calculate all factored load components per BS 8110.
 
     n1 = slab_load (provided, already factored, kN/m)
     n2 = beam self-weight (1.4 × b × d × 24, kN/m)
     n3 = factored wall line load (1.4 × unit_weight × thickness × height, kN/m)
-    p1 = point_load (kN)
+    p1 = point_load (kN) — legacy single point load
+
+    point_loads_list: optional list of dicts [{"P": kN, "a": m}, ...]
+        for multiple point loads.
 
     w = n1 + n2 + n3  (total UDL, kN/m)
 
-    Returns dict with n1, n2, n3, w, p1, and wall detail breakdown
+    Returns dict with n1, n2, n3, w, p1, all_point_loads, and wall detail breakdown
     """
     n1 = slab_load
     n2 = calc_beam_self_weight(beam_width_mm, beam_depth_mm)
@@ -80,6 +83,17 @@ def design_loads(slab_load=0, beam_width_mm=230, beam_depth_mm=300,
     wall_line_load = wall_result["wall_line_load"]
 
     w = n1 + n2 + n3  # total UDL
+
+    # Build the all_point_loads list from point_loads_list or legacy single value
+    all_point_loads = []
+    if point_loads_list:
+        for pl in point_loads_list:
+            all_point_loads.append({
+                "P": round(pl["P"], 3),
+                "a": round(pl.get("a") or 0, 3),
+            })
+    elif point_load > 0:
+        all_point_loads.append({"P": round(point_load, 3), "a": 0})
 
     return {
         "n1_slab_load": round(n1, 3),
@@ -91,6 +105,7 @@ def design_loads(slab_load=0, beam_width_mm=230, beam_depth_mm=300,
         "wall_line_load": round(wall_line_load, 3),
         "w_total_udl": round(w, 3),
         "p1_point_load": round(point_load, 3),
+        "all_point_loads": all_point_loads,
     }
 
 

@@ -192,8 +192,17 @@ def generate_calc_sheet(data, filename="calc_sheet.pdf"):
          "Wall Height", f"{wall_ht} m" if has_wall else "—"],
         ["w = Total UDL", f"{res.get('w_total_udl', 0)} kN/m",
          "Wall Line Load", f"{wall_ll} kN/m" if has_wall else "—"],
-        ["p1 = Point Load", f"{res.get('p1_point_load', 0)} kN", "", ""],
     ]
+
+    all_pls = res.get("all_point_loads", [])
+    if len(all_pls) > 1:
+        pl_str = ", ".join([f"p{i+1}={pl['P']}kN" + (f"@{pl['a']}m" if pl.get('a') is not None else "") for i, pl in enumerate(all_pls)])
+        load_rows.append([_b("Point Loads"), pl_str, "", ""])
+    elif len(all_pls) == 1:
+        pl = all_pls[0]
+        load_rows.append(["p1 = Point Load", f"{pl['P']} kN" + (f" at {pl['a']}m" if pl.get('a') is not None else ""), "", ""])
+    else:
+        load_rows.append(["p1 = Point Load", f"{res.get('p1_point_load', 0)} kN", "", ""])
 
     # Show multi-load combinations if present
     if inp.get("per_span_loads"):

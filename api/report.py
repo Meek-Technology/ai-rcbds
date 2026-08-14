@@ -133,8 +133,12 @@ def generate_pdf(data, filename="beam_report.pdf"):
     else:
         load_data.append(["n3 — Factored Wall Load", "0 kN/m (no wall)"])
 
-    load_data.append(["w — Total UDL", f"{res.get('w_total_udl', 0)} kN/m"])
-    load_data.append(["p1 — Point Load", f"{res.get('p1_point_load', 0)} kN"])
+    all_pls = res.get("all_point_loads", [])
+    if len(all_pls) > 1:
+        pl_str = ", ".join([f"p{i+1} = {pl['P']} kN" + (f" at {pl['a']}m" if pl.get('a') is not None else "") for i, pl in enumerate(all_pls)])
+        load_data.append(["Point Loads", pl_str])
+    else:
+        load_data.append(["p1 — Point Load", f"{res.get('p1_point_load', 0)} kN"])
     
     # Show multi-load combinations if present
     inp = data.get("input", {})

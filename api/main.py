@@ -61,6 +61,13 @@ def predict(data: dict):
     overhang_length = params.get("overhang_length") or 0
     slab_load = 0
 
+    # Extract multiple point loads list from parsed params
+    point_loads_list = None
+    if params.get("point_loads"):
+        point_loads_list = params["point_loads"]
+    elif params.get("loads"):
+        point_loads_list = [ld for ld in params["loads"] if ld.get("type") == "point_load"]
+
     # ═══════════════════════════════════════════════
     #  CONTINUOUS BEAM → Three-Moment Solver
     # ═══════════════════════════════════════════════
@@ -84,6 +91,7 @@ def predict(data: dict):
             wall_thickness=params.get("wall_thickness", 0),
             wall_height=params.get("wall_height", 0),
             point_load=point_load,
+            point_loads_list=point_loads_list,
         )
 
         w = loads_data["w_total_udl"]
@@ -125,6 +133,7 @@ def predict(data: dict):
                 wall_thickness=params.get("wall_thickness", 0),
                 wall_height=params.get("wall_height", 0),
                 point_load=point_load,
+                point_loads_list=point_loads_list,
             )
             w = loads_data["w_total_udl"]
             p1 = loads_data["p1_point_load"]
@@ -259,6 +268,7 @@ def predict(data: dict):
                 "wall_line_load": loads_data["wall_line_load"],
                 "w_total_udl": loads_data["w_total_udl"],
                 "p1_point_load": loads_data["p1_point_load"],
+                "all_point_loads": loads_data.get("all_point_loads", []),
             },
 
             "deflection": {
@@ -320,6 +330,7 @@ def predict(data: dict):
             wall_thickness=params.get("wall_thickness", 0),
             wall_height=params.get("wall_height", 0),
             point_load=point_load,
+            point_loads_list=point_loads_list,
         )
 
         w = loads["w_total_udl"]       # Total UDL = n1 + n2 + n3
@@ -426,6 +437,7 @@ def predict(data: dict):
             "wall_line_load": loads["wall_line_load"],
             "w_total_udl": loads["w_total_udl"],
             "p1_point_load": loads["p1_point_load"],
+            "all_point_loads": loads.get("all_point_loads", []),
         },
 
         "deflection": {
