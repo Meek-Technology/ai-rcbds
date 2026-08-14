@@ -90,39 +90,9 @@ def predict(data: dict):
         p1 = loads_data["p1_point_load"]
 
         # Build per-span loading list
-        span_loads = params.get("per_span_loads")
-        if not span_loads:
-            span_loads = []
-            loads_arr = params.get("loads") or []
-            for s in spans_list:
-                span_load_list = []
-                # Fallback to single/mixed loads applied equally to all spans
-                if loads_arr:
-                    span_load_list = [dict(ld) for ld in loads_arr]
-                    # Update point load position to midspan if not specified or out of bounds
-                    for ld in span_load_list:
-                        if ld.get("type") == "point_load" and (ld.get("a") is None or ld.get("a") > s):
-                            ld["a"] = s / 2
-                else:
-                    if load_type == "point_load" and p1 > 0:
-                        span_load_list.append({"type": "point_load", "P": p1, "a": s / 2})
-                    else:
-                        span_load_list.append({"type": "udl", "w": w})
-                
-                # Always add beam self-weight UDL
-                # Wait, w total already has self-weight. For multi-load we might need to add it separately if not included.
-                # If using generic loads_arr, it only has the user loads. We must add the dead loads (n2+n3).
-                dead_udl = loads_data["n2_beam_self_weight"] + loads_data["n3_wall_load"]
-                if dead_udl > 0:
-                    span_load_list.append({"type": "udl", "w": dead_udl})
-
-                span_loads.append(span_load_list)
-        else:
-            # If using parsed per-span loads, ensure dead loads are added to each span
-            dead_udl = loads_data["n2_beam_self_weight"] + loads_data["n3_wall_load"]
-            for s_idx in range(len(span_loads)):
-                if dead_udl > 0:
-                    span_loads[s_idx].append({"type": "udl", "w": dead_udl})
+        span_loads = _build_continuous_span_loads(
+            params, spans_list, loads_data, load_type, w, p1
+        )
 
         # Solve using Three-Moment Theorem
         result = solve_three_moment(spans_list, span_loads, supports_list)
@@ -159,13 +129,10 @@ def predict(data: dict):
             w = loads_data["w_total_udl"]
             p1 = loads_data["p1_point_load"]
 
-            # Rebuild span loads and re-solve with updated UDL
-            span_loads = []
-            for s in spans_list:
-                if load_type == "point_load" and p1 > 0:
-                    span_loads.append({"type": "point_load", "P": p1, "a": s / 2})
-                else:
-                    span_loads.append({"type": "udl", "w": w})
+            # Rebuild span loads in multi-load format and re-solve
+            span_loads = _build_continuous_span_loads(
+                params, spans_list, loads_data, load_type, w, p1
+            )
             result = solve_three_moment(spans_list, span_loads, supports_list)
             x, shear_curve, moment_curve, load_curve = merge_diagrams(result["diagrams"])
 
@@ -339,6 +306,9 @@ def predict(data: dict):
         slab_load = 0
         point_load = load  # The user's load IS the point load
 
+    # Build user loads array ONCE before the iteration loop
+    user_loads = _build_user_loads(params, load_type, load, load_position, slab_load)
+
     # We iterate to converge on the stable beam size and its associated self-weight
     for iteration in range(3):
         # ── Step 2: Calculate factored loads (BS 8110) ──
@@ -355,17 +325,9 @@ def predict(data: dict):
         w = loads["w_total_udl"]       # Total UDL = n1 + n2 + n3
         p1 = loads["p1_point_load"]    # Point load (separate)
 
-        # ── Step 3: Calculate design moment (M_udl + M_point) ──
-        loads_arr = params.get("loads") or []
-        if not loads_arr:
-            # Fallback to single load
-            if load_type == "point_load" and p1 > 0:
-                loads_arr.append({"type": "point_load", "P": p1, "a": load_position})
-            else:
-                loads_arr.append({"type": "udl", "w": w - (loads["n2_beam_self_weight"] + loads["n3_wall_load"])})
-
+        # ── Step 3: Calculate design moment via superposition ──
         dead_udl = loads["n2_beam_self_weight"] + loads["n3_wall_load"]
-        moments = design_moment_multi(loads_arr, span, beam_type, overhang_length, dead_udl)
+        moments = design_moment_multi(user_loads, span, beam_type, overhang_length, dead_udl)
         M_total = moments["M_total"]
 
         # ── Step 4: BS 8110 Bending Reinforcement Design ──
@@ -410,9 +372,9 @@ def predict(data: dict):
     deflection_status = defl_result["status"]
 
     # ── Step 6: Shear & diagrams ──
-    shear = max_shear_force_multi(loads_arr, span, beam_type, overhang_length, dead_udl)
+    shear = max_shear_force_multi(user_loads, span, beam_type, overhang_length, dead_udl)
     x, shear_curve, moment_curve, load_curve = generate_diagrams_multi(
-        loads_arr, span, beam_type, overhang_length, dead_udl
+        user_loads, span, beam_type, overhang_length, dead_udl
     )
 
     # ── Step 7: Shear reinforcement design ──
@@ -420,6 +382,11 @@ def predict(data: dict):
         shear, beam_size["width"], beam_size["depth"],
         best_reinf["provided_area"], fck
     )
+
+    # ── Compute M_udl and M_point from contributions ──
+    contribs = moments.get("contributions", [])
+    M_udl = round(sum(c["M"] for c in contribs if "UDL" in c.get("desc", "") or "Self-weight" in c.get("desc", "")), 2)
+    M_point = round(sum(c["M"] for c in contribs if "Point load" in c.get("desc", "")), 2)
 
     return {
         "input": params,
@@ -447,8 +414,8 @@ def predict(data: dict):
         "results": {
             "steel_area": reinf_result["As_req"],
             "bending_moment": moments["M_total"],
-            "M_udl": sum(c["M"] for c in moments.get("contributions", []) if "UDL" in c.get("desc", "") or "Self-weight" in c.get("desc", "")),
-            "M_point": sum(c["M"] for c in moments.get("contributions", []) if "Point load" in c.get("desc", "")),
+            "M_udl": M_udl,
+            "M_point": M_point,
             "max_shear_force": round(shear, 2),
             "n1_slab_load": loads["n1_slab_load"],
             "n2_beam_self_weight": loads["n2_beam_self_weight"],
@@ -492,6 +459,91 @@ def predict(data: dict):
     }
 
 
+# ═══════════════════════════════════════════════
+#  Helper: Build user loads array from parsed params
+# ═══════════════════════════════════════════════
+def _build_user_loads(params, load_type, load_value, load_position, slab_load):
+    """
+    Build the user-load array for single-span beams.
+    This is the list of loads the USER specified (UDLs and point loads),
+    NOT including beam self-weight or wall load (those are added as dead_udl).
+    """
+    loads_arr = params.get("loads")
+    if loads_arr:
+        # Deep copy so we don't mutate the original
+        return [dict(ld) for ld in loads_arr]
+
+    # No multi-load from parser — build from legacy fields
+    result = []
+    if load_type == "point_load":
+        result.append({"type": "point_load", "P": load_value, "a": load_position})
+    elif load_type == "combined":
+        # Has both — slab_load acts as UDL, point_load is separate
+        if slab_load and slab_load > 0:
+            result.append({"type": "udl", "w": slab_load})
+        pl = params.get("point_load", 0)
+        if pl > 0:
+            result.append({"type": "point_load", "P": pl, "a": load_position})
+    else:
+        # Pure UDL — slab_load is the user UDL
+        if slab_load and slab_load > 0:
+            result.append({"type": "udl", "w": slab_load})
+        else:
+            result.append({"type": "udl", "w": load_value})
+
+    return result
+
+
+# ═══════════════════════════════════════════════
+#  Helper: Build per-span loads for continuous beams
+# ═══════════════════════════════════════════════
+def _build_continuous_span_loads(params, spans_list, loads_data, load_type, w, p1):
+    """
+    Build per-span loading arrays for the Three-Moment solver.
+    Each span gets a list of load dicts. Dead loads (n2 + n3) are
+    automatically appended to every span.
+    """
+    dead_udl = loads_data["n2_beam_self_weight"] + loads_data["n3_wall_load"]
+
+    # Try parsed per-span loads first
+    per_span = params.get("per_span_loads")
+    if per_span:
+        # Deep copy and add dead loads
+        span_loads = [[dict(ld) for ld in span] for span in per_span]
+        for s_list in span_loads:
+            if dead_udl > 0:
+                s_list.append({"type": "udl", "w": dead_udl})
+        return span_loads
+
+    # Try generic loads array (applied to all spans)
+    loads_arr = params.get("loads") or []
+    span_loads = []
+
+    for s in spans_list:
+        span_load_list = []
+        if loads_arr:
+            for ld in loads_arr:
+                entry = dict(ld)
+                # Clamp point load position to within span
+                if entry.get("type") == "point_load":
+                    if entry.get("a") is None or entry["a"] > s:
+                        entry["a"] = s / 2
+                span_load_list.append(entry)
+        else:
+            # Fallback to single-load legacy
+            if load_type == "point_load" and p1 > 0:
+                span_load_list.append({"type": "point_load", "P": p1, "a": s / 2})
+            else:
+                span_load_list.append({"type": "udl", "w": w})
+
+        if dead_udl > 0:
+            span_load_list.append({"type": "udl", "w": dead_udl})
+
+        span_loads.append(span_load_list)
+
+    return span_loads
+
+
 def check_deflection(span, depth, beam_type="simply_supported"):
     limits = {
         "simply_supported": 20,
@@ -514,7 +566,7 @@ def download_report(data: dict):
     """Generate a PDF results report from the full design data."""
     try:
         file_path = generate_pdf(data)
-        return FileResponse(file_path, filename="ai_beam_results.pdf", media_type='application/pdf')
+        return FileResponse(file_path, filename="ai-rcbds_design_report.pdf", media_type='application/pdf')
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": f"PDF generation failed: {str(e)}"})
 
@@ -524,7 +576,7 @@ def download_calculation_sheet(data: dict):
     """Generate a detailed BS 8110 calculation sheet PDF."""
     try:
         file_path = generate_calc_sheet(data)
-        return FileResponse(file_path, filename="ai_beam_calc_sheet.pdf", media_type='application/pdf')
+        return FileResponse(file_path, filename="ai-rcbds_calc_sheet.pdf", media_type='application/pdf')
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": f"Calculation sheet generation failed: {str(e)}"})
 
@@ -533,7 +585,7 @@ def download_calculation_sheet(data: dict):
 def health_check():
     return {
         "status": "ok",
-        "message": "AI Structural Design System is running..."
+        "message": "AI-RCBDS (AI Reinforced Concrete Beam Design System) is running..."
     }
 
 
@@ -542,17 +594,18 @@ def system_info():
     return {
         "Project": "AI-RCBDS (AI Reinforced Concrete Beam Design System)",
         "Developed by": "Engr. Micheal Shokunbi (MEEK TECHNOLOGY)",
-        "Version": "Final Year Project - Civil Engineering - FUOYE",
+        "Version": "Final Year Project - Civil Engineering - FUOYE (v2.5.0)",
         "Features": [
-            "AI Machine Learning Prediction"
-            "Natural Language Prompt-Based Input",
-            "Graphical Visualization (SFD, BMD, Load Diagrams)",
-            "BS 8110 Factored Wall Load Calculation",
-            "Rigorous Reinforcement Design (BS 8110)",
-            "Detailed PDF Calculation Sheet & Report Generation",
+            "AI Machine Learning Prediction (RandomForest + XGBoost Ensembles)",
+            "Natural Language Multi-Load Prompt Parser",
             "Multi-Span Continuous Beam Analysis (Three-Moment Theorem)",
+            "Heterogeneous & Multi-Load Combinations (UDL + Multiple Point Loads)",
+            "Dynamic Diagram Rendering (SFD, BMD, Load Diagrams)",
+            "BS 8110 Factored Load & Structural Reinforcement Calculations",
+            "Automatic Beam Resizing for Shear & Deflection Safety Compliance",
+            "Professional PDF Design Reports & Detailed BS 8110 Calculation Sheets",
             "Multiple Beam Types (Simply Supported, Cantilever, Continuous, Overhang)",
-            "Multiple Support Conditions (Roller, Pinned, Fixed)"
+            "Multiple Support Configurations (Roller, Pinned, Fixed, Cantilever Free-End)"
         ]
     }
 
@@ -560,8 +613,8 @@ def system_info():
 @app.get("/version")
 def version():
     return {
-        "version": "2.4.0",
-        "release": "A Final Year Project",
+        "version": "2.5.0",
+        "release": "Final Year Project - Multi-Load AI-RCBDS",
         "year": 2026
     }
 
@@ -570,12 +623,42 @@ def version():
 def example_input():
     return {
         "examples": [
-            {"prompt": "Design a simply supported beam with span 6m, UDL of 25kN/m, fcu 30 and fy 500"},
-            {"prompt": "Design a cantilever beam of span 4m, point load 30kN at 4m with fixed support"},
-            {"prompt": "Design a continuous beam with spans 5m, 6m, and 5m, UDL of 15kN/m, supports pinned, roller, roller, pinned"},
-            {"prompt": "Design an overhang beam with span 7m and overhang 2m, UDL 20kN/m, pinned and roller supports"},
-            {"prompt": "Calculate a continuous beam of spans 4m and 5m, with wall thickness 230mm, wall height 3m, UDL 10kN/m, supports fixed, roller, pinned"},
-            {"prompt": "Design a simply supported beam with span 5m, UDL 20kN/m, wall thickness 230mm, wall height 2.5m, unit weight 20 kN/m3"},
+            {
+                "category": "Simply Supported - Multi-Load",
+                "prompt": "Design a simply supported beam with span 6m, UDL 20kN/m and point load 30kN at 2m"
+            },
+            {
+                "category": "Simply Supported - Multiple Point Loads",
+                "prompt": "Design a simply supported beam span 8m with point loads 25kN at 2m and 40kN at 6m"
+            },
+            {
+                "category": "Simply Supported - Partial UDL & Point Load",
+                "prompt": "Simply supported beam 5m span, UDL 15kN/m from 0 to 3m and point load 20kN at 4m"
+            },
+            {
+                "category": "Overhang Beam - Multi-Load",
+                "prompt": "Overhang beam span 6m overhang 2m, UDL 15kN/m on span and point load 10kN at free end"
+            },
+            {
+                "category": "Overhang Beam - Multiple Point Loads",
+                "prompt": "Overhang beam 5m span, 1.5m overhang, point loads 20kN at 3m and 15kN at 6.5m"
+            },
+            {
+                "category": "Continuous Beam - Heterogeneous Spans & Loads",
+                "prompt": "3-span continuous beam spans 5m 6m 5m, span AB UDL 20kN/m, span BC UDL 15kN/m and point load 30kN at 2m, span CD point load 25kN at 3m"
+            },
+            {
+                "category": "Continuous Beam - 2 Span Mixed Loads",
+                "prompt": "Continuous beam spans 4m and 5m, UDL 18kN/m on first span, point load 35kN at 2.5m on second span"
+            },
+            {
+                "category": "Cantilever Beam - Combined Loads",
+                "prompt": "Cantilever beam 3m, UDL 10kN/m and point load 15kN at 3m"
+            },
+            {
+                "category": "Single UDL with Material Grades",
+                "prompt": "Design a simply supported beam with span 6m, UDL of 25kN/m, fcu 30 and fy 500"
+            }
         ]
     }
 

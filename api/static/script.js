@@ -14,6 +14,8 @@ function closeLandingPage() {
         // Remove from DOM after transition completes
         setTimeout(() => overlay.remove(), 700);
     }
+    // Scroll main page to top
+    window.scrollTo({ top: 0, behavior: 'instant' });
 }
 
 // ═══════════════════════════════════════════════
@@ -91,6 +93,7 @@ function showModal(params) {
     const loadLabels = {
         "udl": "UDL (Uniformly Distributed)",
         "point_load": "Point Load",
+        "combined": "Combined (UDL + Point Loads)",
         "triangular": "Triangular"
     };
 
@@ -282,6 +285,7 @@ async function generate(prompt) {
         const loadLabels = {
             "udl": "UDL (Uniformly Distributed)",
             "point_load": "Point Load",
+            "combined": "Combined (UDL + Point Loads)",
             "triangular": "Triangular"
         };
 
@@ -906,66 +910,73 @@ function drawContinuousBeamDiagram(contData, loadValue) {
     const scale = usableW / totalLength;
     const beamEndX = marginL + totalLength * scale;
 
-    // ── Draw per-span load arrows based on load type ──
+    // ── Draw per-span load arrows (supports arrays of loads per span) ──
     const spanLoads = contData.span_loads || [];
     let spanStartX = marginL;
 
     for (let i = 0; i < contData.spans.length; i++) {
         const spanPx = contData.spans[i] * scale;
         const spanEndX = spanStartX + spanPx;
-        const spanLoad = spanLoads[i] || { type: "udl" };
 
-        if (spanLoad.type === "point_load") {
-            // ── Point Load: single bold arrow at load position ──
-            const aMetres = spanLoad.a || (contData.spans[i] / 2);
-            const px = spanStartX + (aMetres / contData.spans[i]) * spanPx;
+        // Normalize: each span may be a single dict or array of dicts
+        let ldList = spanLoads[i] || [];
+        if (!Array.isArray(ldList)) ldList = [ldList];
 
-            ctx.strokeStyle = "#ef4444";
-            ctx.lineWidth = 3;
+        // Separate user loads from dead-weight UDLs for labelling
+        // (Dead loads are small auto-added UDLs — skip labelling them individually)
+        let hasUDL = false;
+        let udlTotal = 0;
+        let plCount = 0;
 
-            // Arrow line
-            ctx.beginPath();
-            ctx.moveTo(px, beamY - 55);
-            ctx.lineTo(px, beamY - 2);
-            ctx.stroke();
+        for (const ld of ldList) {
+            if (ld.type === "point_load") {
+                // Draw each point load arrow
+                const aMetres = ld.a || (contData.spans[i] / 2);
+                const px = spanStartX + (aMetres / contData.spans[i]) * spanPx;
 
-            // Arrow head
-            ctx.beginPath();
-            ctx.moveTo(px - 5, beamY - 12);
-            ctx.lineTo(px, beamY - 2);
-            ctx.lineTo(px + 5, beamY - 12);
-            ctx.stroke();
+                ctx.strokeStyle = "#ef4444";
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(px, beamY - 55);
+                ctx.lineTo(px, beamY - 2);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(px - 5, beamY - 12);
+                ctx.lineTo(px, beamY - 2);
+                ctx.lineTo(px + 5, beamY - 12);
+                ctx.stroke();
 
-            // Label
-            ctx.fillStyle = "#ef4444";
-            ctx.font = "bold 11px Arial";
-            ctx.textAlign = "center";
-            ctx.fillText(`${spanLoad.P} kN`, px, beamY - 60);
+                ctx.fillStyle = "#ef4444";
+                ctx.font = "bold 11px Arial";
+                ctx.textAlign = "center";
+                ctx.fillText(`${ld.P} kN`, px, beamY - 58 - (plCount * 12));
+                plCount++;
 
-        } else {
-            // ── UDL: downward arrows with connecting line ──
+            } else if (ld.type === "udl") {
+                hasUDL = true;
+                udlTotal += (ld.w || 0);
+            }
+        }
+
+        // Draw combined UDL arrows for this span if any UDLs exist
+        if (hasUDL) {
             const udlTopY = beamY - 50;
             const arrowsInSpan = Math.max(3, Math.floor(contData.spans[i] * 2));
             const arrowSpacing = spanPx / arrowsInSpan;
 
             ctx.strokeStyle = "#10b981";
             ctx.lineWidth = 1.5;
-
-            // Top connecting line for this span
             ctx.beginPath();
             ctx.moveTo(spanStartX, udlTopY);
             ctx.lineTo(spanEndX, udlTopY);
             ctx.stroke();
 
-            // Vertical arrows
             for (let j = 0; j <= arrowsInSpan; j++) {
                 const x = spanStartX + j * arrowSpacing;
                 ctx.beginPath();
                 ctx.moveTo(x, udlTopY);
                 ctx.lineTo(x, beamY - 2);
                 ctx.stroke();
-
-                // Arrow head
                 ctx.beginPath();
                 ctx.moveTo(x - 3, beamY - 10);
                 ctx.lineTo(x, beamY - 2);
@@ -973,12 +984,10 @@ function drawContinuousBeamDiagram(contData, loadValue) {
                 ctx.stroke();
             }
 
-            // UDL label for this span
             ctx.fillStyle = "#10b981";
             ctx.font = "11px Arial";
             ctx.textAlign = "center";
-            const wLabel = spanLoad.w ? `${spanLoad.w} kN/m` : (loadValue ? `${loadValue} kN/m` : "UDL");
-            ctx.fillText(wLabel, (spanStartX + spanEndX) / 2, udlTopY - 8);
+            ctx.fillText(`${udlTotal.toFixed(1)} kN/m`, (spanStartX + spanEndX) / 2, udlTopY - 8);
         }
 
         spanStartX = spanEndX;

@@ -7,8 +7,9 @@ def extract_parameters(text):
                  re.search(r'(\d+\.?\d*)\s*m\b(?!\s*(?:Pa|pa|height|thick))', text)
 
     # ── Multiple spans (e.g., "spans 6m, 5m, 4m" or "spans 6m 5m 4m") ──
+    # ── Multiple spans (e.g., "spans 6m, 5m, 4m" or "spans 4m and 5m") ──
     multi_span_match = re.search(
-        r'spans?\s+(\d+\.?\d*)\s*m[\s,]+(\d+\.?\d*)\s*m(?:[\s,]+(\d+\.?\d*)\s*m)?(?:[\s,]+(\d+\.?\d*)\s*m)?(?:[\s,]+(\d+\.?\d*)\s*m)?',
+        r'spans?\s+(?:of\s+)?((?:\d+\.?\d*\s*m?(?:[\s,]+(?:and\s+)?|\s+)){2,5})',
         text, re.IGNORECASE
     )
 
@@ -42,11 +43,19 @@ def extract_parameters(text):
         text, re.IGNORECASE
     )
 
-    # ── Overhang length (e.g., "overhang BC of 2m", "overhang of 2m", "overhang 2m", "overhang: 2m") ──
-    overhang_match = re.search(
-        r'overhang(?:\s*[:=\-]?\s*(?:\w+\s+){0,3})?(?:of\s+)?(\d+\.?\d*)\s*m',
-        text, re.IGNORECASE
-    )
+    # ── Overhang length (e.g., "overhang 2m", "overhang of 2m", "1.5m overhang", "overhang BC of 2m") ──
+    # Handle "Xm overhang" (e.g., "1.5m overhang", but not "span 6m overhang")
+    num_before_overhang = re.search(r'(?<!span\s)(?<!span\s\s)\b(\d+\.?\d*)\s*m\s+overhang\b', text, re.IGNORECASE)
+    if num_before_overhang:
+        overhang_len_val = float(num_before_overhang.group(1))
+    else:
+        overhang_len_val = None
+        # Look for explicit "overhang [length/of/BC/etc] Xm" where "span" is not in between
+        for om in re.finditer(r'overhang[^\d\n]*?(\d+\.?\d*)\s*m\b', text, re.IGNORECASE):
+            snippet = om.group(0).lower()
+            if "span" not in snippet and "beam" not in snippet:
+                overhang_len_val = float(om.group(1))
+                break
 
     # ── Slab loading (e.g., "slab load 15kN/m" or "slab loading of 20") ──
     slab_load_match = re.search(
@@ -81,11 +90,6 @@ def extract_parameters(text):
             beam_type = "continuous"
         elif "overhang" in raw:
             beam_type = "overhang"
-
-    # If an overhang length is mentioned, it's an overhang beam
-    # (even if "simply supported" was also mentioned in the prompt)
-    if overhang_match:
-        beam_type = "overhang"
 
     # ═══════════════════════════════════════════════════
     #  MULTIPLE LOAD EXTRACTION
@@ -147,8 +151,12 @@ def extract_parameters(text):
     support_right = support_right_match.group(1).lower() if support_right_match else default_right
 
     # ── Determine load position and overhang ──
-    overhang_len = float(overhang_match.group(1)) if overhang_match else None
+    overhang_len = overhang_len_val
     span_val = float(span_match.group(1)) if span_match else None
+
+    # If an overhang length is detected, it's an overhang beam
+    if overhang_len is not None:
+        beam_type = "overhang"
 
     # "free end" detection: if load is at the free end of an overhang,
     # load_position = span + overhang_length
@@ -161,16 +169,13 @@ def extract_parameters(text):
     supports_list = None
 
     if multi_span_match:
-        # Extract all matched span groups (up to 5 spans)
-        spans_list = []
-        for g in range(1, 6):
-            val = multi_span_match.group(g)
-            if val:
-                spans_list.append(float(val))
-        beam_type = "continuous"
-        # Use first span as the primary span value
-        if spans_list and not span_val:
-            span_val = spans_list[0]
+        # Extract all matched span numbers
+        span_str = multi_span_match.group(1)
+        spans_list = [float(v) for v in re.findall(r'\d+\.?\d*', span_str)]
+        if spans_list:
+            beam_type = "continuous"
+            if not span_val:
+                span_val = spans_list[0]
 
     # If continuous but only single span, replicate based on n_span_match
     if beam_type == "continuous" and not spans_list and span_val:
@@ -235,6 +240,8 @@ def _extract_loads(text):
         r'point\s+loads?\s*(?:of\s*)?(\d+\.?\d*)\s*kN\s*(?:at\s+(?:distance\s+)?(\d+\.?\d*)\s*m)?',
         # "30kN point load at 2m"
         r'(\d+\.?\d*)\s*kN\s*(?:point\s+load)\s*(?:at\s+(?:distance\s+)?(\d+\.?\d*)\s*m)?',
+        # "and 40kN at 6m" (secondary point loads joined by 'and')
+        r'and\s+(\d+\.?\d*)\s*kN\s*(?:at\s+(?:distance\s+)?(\d+\.?\d*)\s*m)',
     ]
 
     # Find all point load matches
@@ -244,7 +251,16 @@ def _extract_loads(text):
             a = float(m.group(2)) if m.group(2) else None
             loads.append({"type": "point_load", "P": P, "a": a})
 
-    # Deduplicate point loads (same P value from different regex patterns)
+    # If "point load" appears in text, also catch standalone "XkN at Ym" patterns
+    if re.search(r'point\s+load', text, re.IGNORECASE):
+        for m in re.finditer(r'(\d+\.?\d*)\s*kN\s+at\s+(\d+\.?\d*)\s*m', text, re.IGNORECASE):
+            P = float(m.group(1))
+            a = float(m.group(2))
+            # Only add if not already captured
+            if not any(ld["P"] == P and ld.get("a") == a for ld in loads):
+                loads.append({"type": "point_load", "P": P, "a": a})
+
+    # Deduplicate point loads (same P and a values)
     seen_pl = set()
     unique_pl = []
     for ld in loads:
