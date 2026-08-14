@@ -345,7 +345,7 @@ def predict(data: dict):
         p1 = loads["p1_point_load"]    # Point load (separate)
 
         # ── Step 3: Calculate design moment via superposition ──
-        dead_udl = loads["n2_beam_self_weight"] + loads["n3_wall_load"]
+        dead_udl = float(loads["n2_beam_self_weight"] + loads["n3_wall_load"])
         moments = design_moment_multi(user_loads, span, beam_type, overhang_length, dead_udl)
         M_total = moments["M_total"]
 

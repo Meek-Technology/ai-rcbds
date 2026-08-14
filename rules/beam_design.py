@@ -443,7 +443,7 @@ def _compute_point(x, load, span, beam_type, load_type, load_position, overhang_
 # ──────────────────────────────────────────────
 
 def design_moment_multi(loads_list, span, beam_type="simply_supported",
-                        overhang_length=0, beam_self_weight_udl=0):
+                        overhang_length: float = 0.0, beam_self_weight_udl: float = 0.0):
     """
     Calculate total design moment from multiple loads using superposition.
 
@@ -501,7 +501,7 @@ def design_moment_multi(loads_list, span, beam_type="simply_supported",
 
 
 def max_shear_force_multi(loads_list, span, beam_type="simply_supported",
-                          overhang_length=0, beam_self_weight_udl=0):
+                          overhang_length: float = 0.0, beam_self_weight_udl: float = 0.0):
     """
     Calculate maximum shear force from multiple loads using superposition.
     """
@@ -530,7 +530,7 @@ def max_shear_force_multi(loads_list, span, beam_type="simply_supported",
 
 
 def generate_diagrams_multi(loads_list, span, beam_type="simply_supported",
-                            overhang_length=0, beam_self_weight_udl=0):
+                            overhang_length: float = 0.0, beam_self_weight_udl: float = 0.0):
     """
     Generate superposed V(x), M(x), load(x) arrays from multiple loads.
     Uses superposition: compute each load independently and sum.
