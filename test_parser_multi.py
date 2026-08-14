@@ -21,9 +21,9 @@ prompts = [
     # 8. Cantilever — UDL + Point Load
     "Cantilever beam 3m, UDL 10kN/m and point load 15kN at 3m",
     # 9. Continuous ABC — 2 spans with fixed/roller supports & midpoint load
-    "Analyze the continuous beam ABC. Support A is fixed, while B and C are roller supports. Span AB is 3 m and span BC is 4 m. A UDL of 2 kN/m acts over AB, while a 10 kN point load acts at the midpoint of BC.",
+    "Analyze the continuous beam ABC. Support A is fixed, while B and C are roller supports. Span AB is 3 m and span BC is 4 m. A UDL 2 kN/m from 0 to 3m, while a 10 kN point load acts at the midpoint of BC.",
     # 10. Continuous ABCD — 3 spans with fixed ends & midpoint load
-    "Analyze the continuous beam ABCD. Support A and D are fixed, while B and C are roller supports. Span AB = 12 m, BC = 12 m, and CD = 4 m. A UDL of 20 kN/m acts over span BC, while a 250 kN point load acts at the midpoint of span CD.",
+    "Analyze the continuous beam ABCD. Support A and D are fixed, while B and C are roller supports. Span AB = 12 m, BC = 12 m, and CD = 4 m. A UDL 20 kN/m from 12m to 24m, while a 250 kN point load acts at the midpoint of span CD.",
     # 11. Basic simply supported UDL (backward compat)
     "Design a simply supported beam with span 6m, UDL of 25kN/m, fcu 30 and fy 500",
 ]

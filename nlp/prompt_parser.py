@@ -387,10 +387,15 @@ def _extract_per_span_loads(text, spans_or_n):
         spans_list = [0.0] * n_spans
 
     span_labels = []
+    cum_spans = []
+    curr = 0.0
     for i in range(n_spans):
         left = chr(65 + i)
         right = chr(65 + i + 1)
         span_labels.append(f"{left}{right}")
+        s_len = spans_list[i] if i < len(spans_list) else 0.0
+        cum_spans.append((curr, curr + s_len))
+        curr += s_len
 
     per_span = [[] for _ in range(n_spans)]
     found_any = False
@@ -421,6 +426,17 @@ def _extract_per_span_loads(text, spans_or_n):
                    re.search(r'\bspan\s+' + str(idx + 1) + r'\b', clause_str, re.IGNORECASE):
                     target_idx = idx
                     break
+
+        # Check coordinate range ("from 0 to 3m", "from 12m to 24m", "0 to 3m", "12m to 24m")
+        if target_idx is None and any(s_len > 0 for s_len in spans_list):
+            range_m = re.search(r'(?:from\s+)?(\d+\.?\d*)\s*m?\s*(?:to|-)\s*(\d+\.?\d*)\s*m', clause_str, re.IGNORECASE)
+            if range_m:
+                r_start = float(range_m.group(1))
+                r_end = float(range_m.group(2))
+                for idx, (c_start, c_end) in enumerate(cum_spans):
+                    if c_end > c_start and r_start >= c_start - 0.01 and r_end <= c_end + 0.01:
+                        target_idx = idx
+                        break
 
         if target_idx is None:
             continue

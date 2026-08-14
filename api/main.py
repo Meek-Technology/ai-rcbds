@@ -525,11 +525,30 @@ def _build_continuous_span_loads(params, spans_list, loads_data, load_type, w, p
     """
     dead_udl = loads_data["n2_beam_self_weight"] + loads_data["n3_wall_load"]
 
+    # Calculate cumulative span boundaries
+    cum_spans = []
+    curr = 0.0
+    for s_len in spans_list:
+        cum_spans.append((curr, curr + s_len))
+        curr += s_len
+
     # Try parsed per-span loads first
     per_span = params.get("per_span_loads")
     if per_span:
-        # Deep copy and add dead loads
         span_loads = [[dict(ld) for ld in span] for span in per_span]
+
+        # Check if any global UDL in params["loads"] with start/end needs mapping
+        global_loads = params.get("loads") or []
+        for g_ld in global_loads:
+            if g_ld.get("type") == "udl" and "start" in g_ld and "end" in g_ld:
+                g_start = float(g_ld["start"])
+                g_end = float(g_ld["end"])
+                g_w = float(g_ld["w"])
+                for s_idx, (c_start, c_end) in enumerate(cum_spans):
+                    if c_end > c_start and g_start >= c_start - 0.01 and g_end <= c_end + 0.01:
+                        if not any(ld["type"] == "udl" and abs(ld["w"] - g_w) < 1e-4 for ld in span_loads[s_idx]):
+                            span_loads[s_idx].append({"type": "udl", "w": g_w})
+
         for s_list in span_loads:
             if dead_udl > 0:
                 s_list.append({"type": "udl", "w": dead_udl})
@@ -677,11 +696,11 @@ def example_input():
             },
             {
                 "category": "Continuous Beam - Fixed & Roller Supports (2-Span)",
-                "prompt": "Analyze the continuous beam ABC. Support A is fixed, while B and C are roller supports. Span AB is 3 m and span BC is 4 m. A UDL of 2 kN/m acts over AB, while a 10 kN point load acts at the midpoint of BC."
+                "prompt": "Analyze the continuous beam ABC. Support A is fixed, while B and C are roller supports. Span AB is 3 m and span BC is 4 m. A UDL 2 kN/m from 0 to 3m, while a 10 kN point load acts at the midpoint of BC."
             },
             {
                 "category": "Continuous Beam - Fixed Ends & Roller (3-Span)",
-                "prompt": "Analyze the continuous beam ABCD. Support A and D are fixed, while B and C are roller supports. Span AB = 12 m, BC = 12 m, and CD = 4 m. A UDL of 20 kN/m acts over span BC, while a 250 kN point load acts at the midpoint of span CD."
+                "prompt": "Analyze the continuous beam ABCD. Support A and D are fixed, while B and C are roller supports. Span AB = 12 m, BC = 12 m, and CD = 4 m. A UDL 20 kN/m from 12m to 24m, while a 250 kN point load acts at the midpoint of span CD."
             },
             {
                 "category": "Single UDL with Material Grades",
