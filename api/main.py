@@ -668,6 +668,14 @@ def example_input():
                 "prompt": "Cantilever beam 3m, UDL 10kN/m and point load 15kN at 3m"
             },
             {
+                "category": "Continuous Beam - Fixed & Roller Supports (2-Span)",
+                "prompt": "Analyze the continuous beam ABC. Support A is fixed, while B and C are roller supports. Span AB is 3 m and span BC is 4 m. A UDL of 2 kN/m acts over AB, while a 10 kN point load acts at the midpoint of BC."
+            },
+            {
+                "category": "Continuous Beam - Fixed Ends & Roller (3-Span)",
+                "prompt": "Analyze the continuous beam ABCD. Support A and D are fixed, while B and C are roller supports. Span AB = 12 m, BC = 12 m, and CD = 4 m. A UDL of 20 kN/m acts over span BC, while a 250 kN point load acts at the midpoint of span CD."
+            },
+            {
                 "category": "Single UDL with Material Grades",
                 "prompt": "Design a simply supported beam with span 6m, UDL of 25kN/m, fcu 30 and fy 500"
             }

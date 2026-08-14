@@ -179,8 +179,29 @@ def extract_parameters(text):
     spans_list = None
     supports_list = None
 
-    if multi_span_match:
-        # Extract all matched span numbers
+    # ── Multi-span extraction (for continuous beams) ──
+    spans_list = None
+    supports_list = None
+
+    # Pattern A: "Span AB = 12 m, BC = 12 m, and CD = 4 m" or "span AB is 3 m and span BC is 4 m"
+    raw_ab = re.findall(r'([A-Z]{2})\s*[:=is]*\s*(\d+\.?\d*)\s*m', text, re.IGNORECASE)
+    valid_ab = []
+    for label, val in raw_ab:
+        lbl = label.upper()
+        # Verify it's a valid sequential span label like AB, BC, CD, DE...
+        if len(lbl) == 2 and ord(lbl[1]) == ord(lbl[0]) + 1:
+            valid_ab.append((lbl, float(val)))
+
+    if valid_ab:
+        # Preserve sequence order by sorting on span label (AB, BC, CD...)
+        valid_ab.sort(key=lambda x: x[0])
+        spans_list = [v for lbl, v in valid_ab]
+        beam_type = "continuous"
+        if not span_val:
+            span_val = spans_list[0]
+
+    # Pattern B: "spans 6m, 5m, 4m" or "spans 4m and 5m"
+    if not spans_list and multi_span_match:
         span_str = multi_span_match.group(1)
         spans_list = [float(v) for v in re.findall(r'\d+\.?\d*', span_str)]
         if spans_list:
@@ -198,20 +219,38 @@ def extract_parameters(text):
         raw_supports = re.findall(r'(pinned|roller|fixed)', multi_support_match.group(1), re.IGNORECASE)
         supports_list = [s.lower() for s in raw_supports]
 
-    # If continuous with spans but no explicit supports, build defaults
-    if beam_type == "continuous" and spans_list and not supports_list:
+    # Node-by-node support extraction for continuous beams (e.g., "Support A and D are fixed, while B and C are roller supports")
+    if beam_type == "continuous" and spans_list:
         n_supports = len(spans_list) + 1
-        supports_list = ["pinned"] * n_supports
-        # Apply fixed end overrides
-        if fixed_start_match:
-            supports_list[0] = "fixed"
-        if fixed_end_match:
-            supports_list[-1] = "fixed"
+        if not supports_list:
+            supports_list = ["pinned"] * n_supports
+
+        # Multi node pattern: "Support A and D are fixed", "B and C are roller supports"
+        for m in re.finditer(r'(?:supports?\s+)?\b([A-Z])\b\s+(?:and|,)\s+\b([A-Z])\b\s+(?:are\s+)?(?:a\s+)?(fixed|roller|pinned)', text, re.IGNORECASE):
+            node1 = ord(m.group(1).upper()) - 65
+            node2 = ord(m.group(2).upper()) - 65
+            sup_type = m.group(3).lower()
+            if 0 <= node1 < n_supports:
+                supports_list[node1] = sup_type
+            if 0 <= node2 < n_supports:
+                supports_list[node2] = sup_type
+
+        # Single node pattern: "Support A is fixed", "Support A fixed", "B is roller"
+        for m in re.finditer(r'(?:support\s+)?\b([A-Z])\b\s+(?:is\s+)?(?:a\s+)?(fixed|roller|pinned)', text, re.IGNORECASE):
+            node_char = m.group(1).upper()
+            sup_type = m.group(2).lower()
+            node_idx = ord(node_char) - 65
+            if 0 <= node_idx < n_supports:
+                supports_list[node_idx] = sup_type
+
+        # Update support_left and support_right
+        support_left = supports_list[0]
+        support_right = supports_list[-1]
 
     # ── Per-span loads for continuous beams ──
     per_span_loads = None
     if beam_type == "continuous" and spans_list:
-        per_span_loads = _extract_per_span_loads(text, len(spans_list))
+        per_span_loads = _extract_per_span_loads(text, spans_list)
 
     res = {
         "span": span_val,
@@ -335,14 +374,18 @@ def _extract_loads(text):
     return loads
 
 
-def _extract_per_span_loads(text, n_spans):
+def _extract_per_span_loads(text, spans_or_n):
     """
     Extract per-span load definitions for continuous beams.
-    Patterns like: "span AB has UDL 20kN/m", "span BC carries point load 30kN at 2m"
-
-    Returns: list of lists, one per span. Each inner list contains load dicts.
-             Returns None if no per-span definitions found.
+    Accepts either a list of span lengths (spans_list) or int (n_spans).
     """
+    if isinstance(spans_or_n, list):
+        spans_list = spans_or_n
+        n_spans = len(spans_list)
+    else:
+        n_spans = spans_or_n
+        spans_list = [0.0] * n_spans
+
     span_labels = []
     for i in range(n_spans):
         left = chr(65 + i)
@@ -352,36 +395,65 @@ def _extract_per_span_loads(text, n_spans):
     per_span = [[] for _ in range(n_spans)]
     found_any = False
 
-    for idx, label in enumerate(span_labels):
-        # Pattern: "span AB [has/carries/with] UDL 20kN/m [and point load 30kN at 2m]"
-        span_pattern = re.compile(
-            r'span\s+' + label + r'\s+(?:has|carries|with|:)?\s*(.*?)(?=span\s+[A-Z]{2}|$)',
-            re.IGNORECASE | re.DOTALL
-        )
-        span_match = span_pattern.search(text)
-        if not span_match:
+    ordinals = ["first", "second", "third", "fourth", "fifth"]
+
+    # Split text into clauses/phrases
+    clauses = re.split(r'[,;.\n]|(?=\bwhile\b)|(?=\band\b\s+span)', text, flags=re.IGNORECASE)
+
+    for clause in clauses:
+        clause_str = clause.strip()
+        if not clause_str:
             continue
 
-        span_text = span_match.group(1)
+        target_idx = None
 
-        # Extract UDLs from this span's text
-        udl_m = re.search(r'(?:udl|uniformly)\s*(?:of\s*)?(\d+\.?\d*)\s*kN/?m', span_text, re.IGNORECASE)
+        # Check explicit span labels (AB, BC, CD...)
+        for idx, label in enumerate(span_labels):
+            if re.search(r'\b' + label + r'\b', clause_str, re.IGNORECASE) or \
+               re.search(r'span\s+' + label, clause_str, re.IGNORECASE):
+                target_idx = idx
+                break
+
+        # Check ordinal references ("first span", "second span"...)
+        if target_idx is None:
+            for idx, ord_word in enumerate(ordinals[:n_spans]):
+                if re.search(r'\b' + ord_word + r'\s+span\b', clause_str, re.IGNORECASE) or \
+                   re.search(r'\bspan\s+' + str(idx + 1) + r'\b', clause_str, re.IGNORECASE):
+                    target_idx = idx
+                    break
+
+        if target_idx is None:
+            continue
+
+        span_len = spans_list[target_idx]
+
+        # Extract UDL
+        udl_m = re.search(r'(?:udl|uniformly)\s*(?:of\s*)?(\d+\.?\d*)\s*kN/?m', clause_str, re.IGNORECASE)
         if not udl_m:
-            udl_m = re.search(r'(\d+\.?\d*)\s*kN/m', span_text, re.IGNORECASE)
+            udl_m = re.search(r'(\d+\.?\d*)\s*kN/m', clause_str, re.IGNORECASE)
 
         if udl_m:
-            per_span[idx].append({"type": "udl", "w": float(udl_m.group(1))})
+            w = float(udl_m.group(1))
+            per_span[target_idx].append({"type": "udl", "w": w})
             found_any = True
 
-        # Extract point loads from this span's text
-        for pl_m in re.finditer(
-            r'point\s+loads?\s*(?:of\s*)?(\d+\.?\d*)\s*kN\s*(?:at\s+(\d+\.?\d*)\s*m)?',
-            span_text, re.IGNORECASE
-        ):
+        # Extract Point Load
+        pl_m = re.search(r'(\d+\.?\d*)\s*kN\s+(?:point\s+load)?', clause_str, re.IGNORECASE) or \
+               re.search(r'point\s+loads?\s*(?:of\s*)?(\d+\.?\d*)\s*kN', clause_str, re.IGNORECASE)
+
+        if pl_m:
             P = float(pl_m.group(1))
-            a = float(pl_m.group(2)) if pl_m.group(2) else None
-            per_span[idx].append({"type": "point_load", "P": P, "a": a})
-            found_any = True
+            if not (udl_m and float(udl_m.group(1)) == P):
+                pos_m = re.search(r'at\s+(?:distance\s+)?(\d+\.?\d*)\s*m', clause_str, re.IGNORECASE)
+                if pos_m:
+                    a = float(pos_m.group(1))
+                elif re.search(r'midpoint|midspan|center|middle', clause_str, re.IGNORECASE):
+                    a = span_len / 2.0 if span_len > 0 else None
+                else:
+                    a = None
+
+                per_span[target_idx].append({"type": "point_load", "P": P, "a": a})
+                found_any = True
 
     return per_span if found_any else None
 

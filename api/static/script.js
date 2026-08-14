@@ -65,15 +65,36 @@ async function handleGenerate() {
 function showModal(params) {
     const grid = document.getElementById("parsedParams");
 
-    // Parameter definitions: [key, label, unit, highlight?]
+    // Parameter definitions: [key, label, unit, highlight?, explicitValue?]
     const fields = [
         ["beam_type", "Beam Type", "", true],
         ["load_type", "Load Type", "", true],
         ["span", "Span", "m", false],
         ["load", "Load", "kN/m", false],
         ["slab_load", "Slab Load (n1)", "kN/m", false],
-        ["point_load", "Point Load (p1)", "kN", false],
-        ["load_position", "Load Position", "m", false],
+    ];
+
+    // Dynamic point load fields (p1, a1, p2, a2, p3, a3...)
+    const pointLoadList = params.point_loads || (params.loads ? params.loads.filter(ld => ld.type === "point_load") : []);
+    if (pointLoadList.length > 0) {
+        pointLoadList.forEach((pl, idx) => {
+            const num = idx + 1;
+            const posLabel = pointLoadList.length > 1 ? `Load Position (a${num})` : "Load Position (a1)";
+            fields.push([`p${num}`, `Point Load (p${num})`, "kN", false, pl.P]);
+            if (pl.a !== undefined && pl.a !== null) {
+                fields.push([`a${num}`, posLabel, "m", false, pl.a]);
+            }
+        });
+    } else {
+        if (params.point_load) {
+            fields.push(["point_load", "Point Load (p1)", "kN", false, params.point_load]);
+        }
+        if (params.load_position) {
+            fields.push(["load_position", "Load Position (a1)", "m", false, params.load_position]);
+        }
+    }
+
+    fields.push(
         ["overhang_length", "Overhang Length", "m", false],
         ["fcu", "Concrete (fcu)", "N/mm²", false],
         ["fy", "Steel (fy)", "N/mm²", false],
@@ -81,8 +102,8 @@ function showModal(params) {
         ["support_right", "Right Support", "", false],
         ["wall_height", "Wall Height", "m", false],
         ["wall_thickness", "Wall Thickness", "m", false],
-        ["density", "Wall Unit Weight", "kN/m³", false],
-    ];
+        ["density", "Wall Unit Weight", "kN/m³", false]
+    );
 
     const typeLabels = {
         "simply_supported": "Simply Supported",
@@ -99,12 +120,13 @@ function showModal(params) {
 
     let html = "";
 
-    for (const [key, label, unit, highlight] of fields) {
-        let val = params[key];
+    for (const item of fields) {
+        const [key, label, unit, highlight, explicitVal] = item;
+        let val = explicitVal !== undefined ? explicitVal : params[key];
 
         // Skip null/zero optional fields
         if (val === null || val === undefined) continue;
-        if (val === 0 && ["slab_load", "point_load", "wall_height", "wall_thickness", "overhang_length", "load_position"].includes(key)) continue;
+        if (val === 0 && ["load", "slab_load", "point_load", "wall_height", "wall_thickness", "overhang_length", "load_position"].includes(key)) continue;
 
         // For continuous beams, skip single span/support (we show multi-span instead)
         if (params.spans && ["span", "support_left", "support_right"].includes(key)) continue;
