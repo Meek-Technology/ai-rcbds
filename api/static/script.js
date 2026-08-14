@@ -70,10 +70,8 @@ function showModal(params) {
         ["beam_type", "Beam Type", "", true],
         ["load_type", "Load Type", "", true],
         ["span", "Span", "m", false],
-        ["load", "Load", "kN/m", false],
+        ["load", "UDL Load", "kN/m", false],
         ["slab_load", "Slab Load (n1)", "kN/m", false],
-        ["point_load", "Point Load (p1)", "kN", false],
-        ["load_position", "Load Position", "m", false],
         ["overhang_length", "Overhang Length", "m", false],
         ["fcu", "Concrete (fcu)", "N/mm²", false],
         ["fy", "Steel (fy)", "N/mm²", false],
@@ -102,9 +100,12 @@ function showModal(params) {
     for (const [key, label, unit, highlight] of fields) {
         let val = params[key];
 
-        // Skip null/zero optional fields
+        // Skip null/zero/undefined optional fields
         if (val === null || val === undefined) continue;
-        if (val === 0 && ["slab_load", "point_load", "wall_height", "wall_thickness", "overhang_length", "load_position"].includes(key)) continue;
+        if ((val === 0 || val === 0.0) && ["load", "slab_load", "wall_height", "wall_thickness", "overhang_length", "density"].includes(key)) continue;
+
+        // Skip UDL field if load_type is point_load and load is 0
+        if (key === "load" && params.load_type === "point_load" && (!val || val === 0)) continue;
 
         // For continuous beams, skip single span/support (we show multi-span instead)
         if (params.spans && ["span", "support_left", "support_right"].includes(key)) continue;
@@ -122,6 +123,31 @@ function showModal(params) {
             <div class="param-item${fullClass}">
                 <span class="param-label">${label}</span>
                 <span class="param-value${hlClass}">${displayVal}</span>
+            </div>
+        `;
+    }
+
+    // ── Dynamic Point Loads display (p1, p2, p3...) ──
+    let pIdx = 1;
+    while (params[`p${pIdx}`] !== undefined && params[`p${pIdx}`] !== null && params[`p${pIdx}`] > 0) {
+        const pVal = params[`p${pIdx}`];
+        const aVal = params[`a${pIdx}`];
+        const posText = (aVal !== undefined && aVal !== null) ? ` at ${aVal}m` : "";
+        html += `
+            <div class="param-item">
+                <span class="param-label">Point Load (p${pIdx})</span>
+                <span class="param-value">${pVal} kN${posText}</span>
+            </div>
+        `;
+        pIdx++;
+    }
+    // Fallback if legacy single point_load exists but no p1 key
+    if (pIdx === 1 && params.point_load > 0) {
+        const posText = (params.load_position !== undefined && params.load_position !== null) ? ` at ${params.load_position}m` : "";
+        html += `
+            <div class="param-item">
+                <span class="param-label">Point Load (p1)</span>
+                <span class="param-value">${params.point_load} kN${posText}</span>
             </div>
         `;
     }
@@ -147,9 +173,9 @@ function showModal(params) {
         `;
     }
 
-    // ── Multi-load display ──
+    // ── Multi-load / Per-span detailed load breakdown ──
     if (params.per_span_loads && params.per_span_loads.length > 0) {
-        html += `<div class="param-item full-width"><span class="param-label">Per-Span Loads</span><div style="font-size: 0.9em;">`;
+        html += `<div class="param-item full-width"><span class="param-label">Per-Span Load Details</span><div style="font-size: 0.9em;">`;
         params.per_span_loads.forEach((spanLoads, idx) => {
             const letterLeft = String.fromCharCode(65 + idx);
             const letterRight = String.fromCharCode(66 + idx);
@@ -162,7 +188,7 @@ function showModal(params) {
         });
         html += `</div></div>`;
     } else if (params.loads && params.loads.length > 0) {
-        html += `<div class="param-item full-width"><span class="param-label">Combined Loads</span><ul>`;
+        html += `<div class="param-item full-width"><span class="param-label">Detailed Load Combination</span><ul>`;
         params.loads.forEach(ld => {
             if (ld.type === "udl") {
                 let text = `UDL: ${ld.w} kN/m`;
