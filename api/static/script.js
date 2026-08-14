@@ -630,14 +630,15 @@ function getMaxPoint(data) {
 
 function drawBeamDiagram(input) {
     const canvas = document.getElementById("beamCanvas");
-    // Reset canvas to default size for single-span beams
-    canvas.width = 600;
-    canvas.height = 200;
+    if (!canvas) return;
+    // Set canvas dimensions with ample vertical height for elevated loads & breakdown dimensions
+    canvas.width = 650;
+    canvas.height = 280;
     const ctx = canvas.getContext("2d");
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const margin = 60;
-    const beamY = 100;
+    const margin = 65;
+    const beamY = 120;
     const startX = margin;
     const endX = canvas.width - margin;
 
@@ -645,14 +646,18 @@ function drawBeamDiagram(input) {
     const totalLen = input.span + oh;
     const beamLen = endX - startX;
 
-    // Support positions (proportional to total length)
+    // Support positions
     const supportAx = startX;
     const supportBx = startX + (input.span / totalLen) * beamLen;
-    const freeEndX = endX;  // End of overhang (or end of beam if no overhang)
+    const freeEndX = endX;
+
+    // Check if UDL is present to elevate point load arrows
+    const loads_arr = input.loads || [];
+    const hasUDL = loads_arr.some(ld => ld.type === "udl") || input.load_type === "udl" || input.load_type === "combined";
 
     // ── Draw Beam Line ──
     ctx.strokeStyle = "#3b82f6";
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 5;
     ctx.beginPath();
     ctx.moveTo(startX, beamY);
     ctx.lineTo(freeEndX, beamY);
@@ -666,8 +671,24 @@ function drawBeamDiagram(input) {
         drawSupport(ctx, freeEndX, beamY, input.support_right);
     }
 
-    // ── Draw Load ──
-    const loads_arr = input.loads || [];
+    // ── Draw Support Labels ──
+    ctx.fillStyle = "#10b981";
+    ctx.font = "bold 13px Arial";
+    ctx.textAlign = "center";
+    if (oh > 0) {
+        ctx.fillText("A", supportAx, beamY + 38);
+        ctx.fillText("B", supportBx, beamY + 38);
+        ctx.fillText("C (Free)", freeEndX, beamY + 38);
+    } else {
+        ctx.fillText("A", supportAx, beamY + 38);
+        if (input.beam_type === "cantilever") {
+            ctx.fillText("B (Free)", freeEndX, beamY + 38);
+        } else {
+            ctx.fillText("B", freeEndX, beamY + 38);
+        }
+    }
+
+    // ── Draw Loads ──
     if (loads_arr.length > 0) {
         loads_arr.forEach(ld => {
             if (ld.type === "udl") {
@@ -677,42 +698,171 @@ function drawBeamDiagram(input) {
             } else if (ld.type === "point_load") {
                 const pos = ld.a !== undefined ? ld.a : input.span / 2;
                 const px = startX + (pos / totalLen) * beamLen;
-                drawPointLoad(ctx, px, beamY, ld.P);
+                const plOffset = hasUDL ? 75 : 55; // Elevate point load above UDL
+                drawPointLoad(ctx, px, beamY, ld.P, plOffset);
             }
         });
     } else {
-        // Fallback for older format
-        if (input.load_type === "udl") {
+        // Legacy fallback
+        if (input.load_type === "udl" || input.load_type === "combined") {
             drawUDL(ctx, startX, freeEndX, beamY, input.load);
-        } else if (input.load_type === "point_load") {
+        }
+        if (input.point_load > 0 || input.load_type === "point_load") {
             const pos = input.load_position || input.span / 2;
             const px = startX + (pos / totalLen) * beamLen;
-            drawPointLoad(ctx, px, beamY, input.load);
+            const plVal = input.point_load > 0 ? input.point_load : input.load;
+            const plOffset = (input.load > 0 && input.point_load > 0) ? 75 : 55;
+            drawPointLoad(ctx, px, beamY, plVal, plOffset);
         }
     }
 
-    // ── Labels ──
-    ctx.fillStyle = "#f59e0b";
-    ctx.font = "bold 13px Arial";
-    ctx.textAlign = "center";
+    // ═══════════════════════════════════════════════════
+    //  SPAN LENGTH POSITION BREAKDOWN & TOTAL SPAN LINES
+    // ═══════════════════════════════════════════════════
+    let keypoints = [0, input.span];
+    if (oh > 0) keypoints.push(totalLen);
 
-    if (oh > 0) {
-        // Label span and overhang separately
-        const midSpan = (supportAx + supportBx) / 2;
-        ctx.fillText(`Span: ${input.span}m`, midSpan, beamY + 55);
-
-        const midOH = (supportBx + freeEndX) / 2;
-        ctx.fillText(`OH: ${oh}m`, midOH, beamY + 55);
-
-        // Label supports
-        ctx.fillStyle = "#10b981";
-        ctx.font = "bold 11px Arial";
-        ctx.fillText("A", supportAx, beamY + 45);
-        ctx.fillText("B", supportBx, beamY + 45);
-        ctx.fillText("C", freeEndX, beamY + 10);
-    } else {
-        ctx.fillText(`Span: ${input.span}m`, canvas.width / 2, beamY + 55);
+    // Collect point load and partial UDL positions
+    if (loads_arr.length > 0) {
+        loads_arr.forEach(ld => {
+            if (ld.type === "point_load") {
+                const pos = ld.a !== undefined ? ld.a : input.span / 2;
+                if (pos > 0 && pos < totalLen) keypoints.push(pos);
+            } else if (ld.type === "udl") {
+                if (ld.start && ld.start > 0 && ld.start < totalLen) keypoints.push(ld.start);
+                if (ld.end && ld.end > 0 && ld.end < totalLen) keypoints.push(ld.end);
+            }
+        });
     }
+
+    // Sort and deduplicate keypoints
+    keypoints.sort((a, b) => a - b);
+    let uniquePts = [];
+    keypoints.forEach(pt => {
+        if (!uniquePts.some(u => Math.abs(u - pt) < 0.01)) uniquePts.push(pt);
+    });
+
+    const dimY = beamY + 58;
+    const tickH = 5;
+
+    // If intermediate load positions exist, draw segment breakdown
+    if (uniquePts.length > 2) {
+        ctx.strokeStyle = "#94a3b8";
+        ctx.lineWidth = 1.2;
+
+        for (let j = 0; j < uniquePts.length - 1; j++) {
+            const pt1 = uniquePts[j];
+            const pt2 = uniquePts[j + 1];
+            const x1 = startX + (pt1 / totalLen) * beamLen;
+            const x2 = startX + (pt2 / totalLen) * beamLen;
+            const segLen = pt2 - pt1;
+            const midSegX = (x1 + x2) / 2;
+
+            // Vertical ticks
+            ctx.beginPath();
+            ctx.moveTo(x1, dimY - tickH);
+            ctx.lineTo(x1, dimY + tickH);
+            ctx.moveTo(x2, dimY - tickH);
+            ctx.lineTo(x2, dimY + tickH);
+            ctx.stroke();
+
+            // Dashed segment line
+            ctx.setLineDash([3, 3]);
+            ctx.beginPath();
+            ctx.moveTo(x1, dimY);
+            ctx.lineTo(x2, dimY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Segment length text
+            ctx.fillStyle = "#cbd5e1";
+            ctx.font = "11px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText(`${segLen.toFixed(1)}m`, midSegX, dimY - 4);
+        }
+
+        // Draw Total Span Line below breakdown
+        const totalDimY = dimY + 30;
+        ctx.strokeStyle = "#f59e0b";
+        ctx.lineWidth = 1.5;
+
+        // Main span total line
+        ctx.beginPath();
+        ctx.moveTo(supportAx, totalDimY - tickH);
+        ctx.lineTo(supportAx, totalDimY + tickH);
+        ctx.moveTo(supportBx, totalDimY - tickH);
+        ctx.lineTo(supportBx, totalDimY + tickH);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(supportAx, totalDimY);
+        ctx.lineTo(supportBx, totalDimY);
+        ctx.stroke();
+
+        ctx.fillStyle = "#f59e0b";
+        ctx.font = "bold 12px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(`Total Span: ${input.span}m`, (supportAx + supportBx) / 2, totalDimY - 5);
+
+        // Overhang total line if present
+        if (oh > 0) {
+            ctx.strokeStyle = "#ec4899";
+            ctx.beginPath();
+            ctx.moveTo(supportBx, totalDimY - tickH);
+            ctx.lineTo(supportBx, totalDimY + tickH);
+            ctx.moveTo(freeEndX, totalDimY - tickH);
+            ctx.lineTo(freeEndX, totalDimY + tickH);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(supportBx, totalDimY);
+            ctx.lineTo(freeEndX, totalDimY);
+            ctx.stroke();
+
+            ctx.fillStyle = "#ec4899";
+            ctx.fillText(`OH: ${oh}m`, (supportBx + freeEndX) / 2, totalDimY - 5);
+        }
+    } else {
+        // No breakdown needed — single total span line
+        ctx.strokeStyle = "#f59e0b";
+        ctx.lineWidth = 1.5;
+
+        ctx.beginPath();
+        ctx.moveTo(supportAx, dimY - tickH);
+        ctx.lineTo(supportAx, dimY + tickH);
+        ctx.moveTo(supportBx, dimY - tickH);
+        ctx.lineTo(supportBx, dimY + tickH);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(supportAx, dimY);
+        ctx.lineTo(supportBx, dimY);
+        ctx.stroke();
+
+        ctx.fillStyle = "#f59e0b";
+        ctx.font = "bold 12px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(`Span: ${input.span}m`, (supportAx + supportBx) / 2, dimY - 5);
+
+        if (oh > 0) {
+            ctx.strokeStyle = "#ec4899";
+            ctx.beginPath();
+            ctx.moveTo(supportBx, dimY - tickH);
+            ctx.lineTo(supportBx, dimY + tickH);
+            ctx.moveTo(freeEndX, dimY - tickH);
+            ctx.lineTo(freeEndX, dimY + tickH);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(supportBx, dimY);
+            ctx.lineTo(freeEndX, dimY);
+            ctx.stroke();
+
+            ctx.fillStyle = "#ec4899";
+            ctx.fillText(`OH: ${oh}m`, (supportBx + freeEndX) / 2, dimY - 5);
+        }
+    }
+
     ctx.textAlign = "start";
 }
 
@@ -723,18 +873,15 @@ function drawSupport(ctx, x, y, type) {
     if (type === "roller") {
         ctx.strokeStyle = "#f59e0b";
         ctx.fillStyle = "transparent";
-        // Triangle
         ctx.beginPath();
         ctx.moveTo(x, y);
         ctx.lineTo(x - 10, y + 18);
         ctx.lineTo(x + 10, y + 18);
         ctx.closePath();
         ctx.stroke();
-        // Circle (roller)
         ctx.beginPath();
         ctx.arc(x, y + 23, 5, 0, 2 * Math.PI);
         ctx.stroke();
-        // Ground line
         ctx.beginPath();
         ctx.moveTo(x - 14, y + 29);
         ctx.lineTo(x + 14, y + 29);
@@ -743,19 +890,16 @@ function drawSupport(ctx, x, y, type) {
     } else if (type === "pinned") {
         ctx.strokeStyle = "#10b981";
         ctx.fillStyle = "transparent";
-        // Triangle
         ctx.beginPath();
         ctx.moveTo(x, y);
         ctx.lineTo(x - 10, y + 18);
         ctx.lineTo(x + 10, y + 18);
         ctx.closePath();
         ctx.stroke();
-        // Ground line
         ctx.beginPath();
         ctx.moveTo(x - 14, y + 18);
         ctx.lineTo(x + 14, y + 18);
         ctx.stroke();
-        // Hatching
         for (let i = -8; i <= 8; i += 5) {
             ctx.beginPath();
             ctx.moveTo(x + i, y + 18);
@@ -765,13 +909,11 @@ function drawSupport(ctx, x, y, type) {
 
     } else if (type === "fixed") {
         ctx.strokeStyle = "#ef4444";
-        // Wall (vertical line with hatching)
         ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.moveTo(x, y - 20);
         ctx.lineTo(x, y + 25);
         ctx.stroke();
-        // Hatching lines
         ctx.lineWidth = 1.5;
         for (let i = -15; i <= 20; i += 7) {
             ctx.beginPath();
@@ -781,22 +923,23 @@ function drawSupport(ctx, x, y, type) {
         }
 
     } else if (type === "free") {
-        // Nothing drawn — free end
+        // Free end
     }
 }
 
 
 function drawUDL(ctx, startX, endX, beamY, load) {
     ctx.strokeStyle = "#10b981";
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 1.5;
 
-    const arrows = 10;
+    const udlTopY = beamY - 40;
+    const arrows = Math.max(4, Math.floor((endX - startX) / 25));
     const spacing = (endX - startX) / arrows;
 
-    // Top line connecting arrows
+    // Top horizontal line
     ctx.beginPath();
-    ctx.moveTo(startX, beamY - 30);
-    ctx.lineTo(endX, beamY - 30);
+    ctx.moveTo(startX, udlTopY);
+    ctx.lineTo(endX, udlTopY);
     ctx.stroke();
 
     for (let i = 0; i <= arrows; i++) {
@@ -804,46 +947,50 @@ function drawUDL(ctx, startX, endX, beamY, load) {
 
         // Vertical arrow line
         ctx.beginPath();
-        ctx.moveTo(x, beamY - 30);
-        ctx.lineTo(x, beamY);
+        ctx.moveTo(x, udlTopY);
+        ctx.lineTo(x, beamY - 2);
         ctx.stroke();
 
         // Arrow head
         ctx.beginPath();
-        ctx.moveTo(x - 4, beamY - 8);
-        ctx.lineTo(x, beamY);
-        ctx.lineTo(x + 4, beamY - 8);
+        ctx.moveTo(x - 3, beamY - 10);
+        ctx.lineTo(x, beamY - 2);
+        ctx.lineTo(x + 3, beamY - 10);
         ctx.stroke();
     }
 
-    // Load label
+    // UDL Load label
     ctx.fillStyle = "#10b981";
-    ctx.font = "12px Arial";
-    ctx.fillText(`${load} kN/m`, (startX + endX) / 2 - 25, beamY - 35);
+    ctx.font = "bold 11px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(`${load} kN/m`, (startX + endX) / 2, udlTopY - 6);
 }
 
 
-function drawPointLoad(ctx, px, beamY, load) {
+function drawPointLoad(ctx, px, beamY, load, startYOffset = 55) {
     ctx.strokeStyle = "#ef4444";
     ctx.lineWidth = 3;
 
-    // Arrow line
+    const arrowTopY = beamY - startYOffset;
+
+    // Arrow line (starts higher if elevated above UDL)
     ctx.beginPath();
-    ctx.moveTo(px, beamY - 50);
-    ctx.lineTo(px, beamY);
+    ctx.moveTo(px, arrowTopY);
+    ctx.lineTo(px, beamY - 2);
     ctx.stroke();
 
     // Arrow head
     ctx.beginPath();
-    ctx.moveTo(px - 6, beamY - 10);
-    ctx.lineTo(px, beamY);
-    ctx.lineTo(px + 6, beamY - 10);
+    ctx.moveTo(px - 6, beamY - 12);
+    ctx.lineTo(px, beamY - 2);
+    ctx.lineTo(px + 6, beamY - 12);
     ctx.stroke();
 
-    // Label
+    // Label — placed clearly above top of arrow line
     ctx.fillStyle = "#ef4444";
-    ctx.font = "bold 13px Arial";
-    ctx.fillText(`${load} kN`, px - 18, beamY - 55);
+    ctx.font = "bold 12px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(`${load} kN`, px, arrowTopY - 5);
 }
 
 
@@ -854,7 +1001,6 @@ function drawTriangularLoad(ctx, startX, endX, beamY, load) {
     const arrows = 10;
     const spacing = (endX - startX) / arrows;
 
-    // Slanted top line (0 at left → max at right)
     ctx.beginPath();
     ctx.moveTo(startX, beamY);
     ctx.lineTo(endX, beamY - 40);
@@ -862,15 +1008,13 @@ function drawTriangularLoad(ctx, startX, endX, beamY, load) {
 
     for (let i = 1; i <= arrows; i++) {
         let x = startX + i * spacing;
-        let height = (i / arrows) * 40;  // Linearly increasing
+        let height = (i / arrows) * 40;
 
-        // Vertical arrow
         ctx.beginPath();
         ctx.moveTo(x, beamY - height);
         ctx.lineTo(x, beamY);
         ctx.stroke();
 
-        // Arrow head
         ctx.beginPath();
         ctx.moveTo(x - 4, beamY - 8);
         ctx.lineTo(x, beamY);
@@ -878,7 +1022,6 @@ function drawTriangularLoad(ctx, startX, endX, beamY, load) {
         ctx.stroke();
     }
 
-    // Label
     ctx.fillStyle = "#f59e0b";
     ctx.font = "12px Arial";
     ctx.fillText(`${load} kN/m (max)`, endX - 70, beamY - 45);
@@ -886,7 +1029,7 @@ function drawTriangularLoad(ctx, startX, endX, beamY, load) {
 
 
 // ═══════════════════════════════════════════════
-//  MULTI-SPAN BEAM DIAGRAM
+//  MULTI-SPAN CONTINUOUS BEAM DIAGRAM
 // ═══════════════════════════════════════════════
 
 function drawContinuousBeamDiagram(contData, loadValue) {
@@ -894,23 +1037,22 @@ function drawContinuousBeamDiagram(contData, loadValue) {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
 
-    // Resize canvas for multi-span (taller to fit load arrows)
     const totalLength = contData.spans.reduce((a, b) => a + b, 0);
-    canvas.width = Math.max(600, 100 + contData.spans.length * 160);
-    canvas.height = 250;
+    canvas.width = Math.max(650, 120 + contData.spans.length * 170);
+    canvas.height = 320;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const marginL = 50;
-    const marginR = 50;
-    const beamY = 140;
+    const marginL = 55;
+    const marginR = 55;
+    const beamY = 135;
     const usableW = canvas.width - marginL - marginR;
 
     // Scale: pixels per meter
     const scale = usableW / totalLength;
     const beamEndX = marginL + totalLength * scale;
 
-    // ── Draw per-span load arrows (supports arrays of loads per span) ──
+    // ── Draw per-span load arrows ──
     const spanLoads = contData.span_loads || [];
     let spanStartX = marginL;
 
@@ -918,50 +1060,54 @@ function drawContinuousBeamDiagram(contData, loadValue) {
         const spanPx = contData.spans[i] * scale;
         const spanEndX = spanStartX + spanPx;
 
-        // Normalize: each span may be a single dict or array of dicts
         let ldList = spanLoads[i] || [];
         if (!Array.isArray(ldList)) ldList = [ldList];
 
-        // Separate user loads from dead-weight UDLs for labelling
-        // (Dead loads are small auto-added UDLs — skip labelling them individually)
         let hasUDL = false;
         let udlTotal = 0;
         let plCount = 0;
 
         for (const ld of ldList) {
+            if (ld.type === "udl") {
+                hasUDL = true;
+                udlTotal += (ld.w || 0);
+            }
+        }
+
+        // Draw point loads — elevated if span has UDL
+        for (const ld of ldList) {
             if (ld.type === "point_load") {
-                // Draw each point load arrow
                 const aMetres = ld.a || (contData.spans[i] / 2);
                 const px = spanStartX + (aMetres / contData.spans[i]) * spanPx;
+                const plOffset = hasUDL ? 75 : 55; // Elevate above UDL line (beamY - 75 vs beamY - 40)
+                const arrowTopY = beamY - plOffset;
 
                 ctx.strokeStyle = "#ef4444";
                 ctx.lineWidth = 3;
                 ctx.beginPath();
-                ctx.moveTo(px, beamY - 55);
+                ctx.moveTo(px, arrowTopY);
                 ctx.lineTo(px, beamY - 2);
                 ctx.stroke();
+
                 ctx.beginPath();
                 ctx.moveTo(px - 5, beamY - 12);
                 ctx.lineTo(px, beamY - 2);
                 ctx.lineTo(px + 5, beamY - 12);
                 ctx.stroke();
 
+                // Point load value raised above UDL text
                 ctx.fillStyle = "#ef4444";
-                ctx.font = "bold 11px Arial";
+                ctx.font = "bold 12px Arial";
                 ctx.textAlign = "center";
-                ctx.fillText(`${ld.P} kN`, px, beamY - 58 - (plCount * 12));
+                ctx.fillText(`${ld.P} kN`, px, arrowTopY - 6 - (plCount * 14));
                 plCount++;
-
-            } else if (ld.type === "udl") {
-                hasUDL = true;
-                udlTotal += (ld.w || 0);
             }
         }
 
-        // Draw combined UDL arrows for this span if any UDLs exist
+        // Draw UDL arrows for this span
         if (hasUDL) {
-            const udlTopY = beamY - 50;
-            const arrowsInSpan = Math.max(3, Math.floor(contData.spans[i] * 2));
+            const udlTopY = beamY - 40;
+            const arrowsInSpan = Math.max(4, Math.floor(contData.spans[i] * 2));
             const arrowSpacing = spanPx / arrowsInSpan;
 
             ctx.strokeStyle = "#10b981";
@@ -984,30 +1130,31 @@ function drawContinuousBeamDiagram(contData, loadValue) {
                 ctx.stroke();
             }
 
+            // UDL label
             ctx.fillStyle = "#10b981";
-            ctx.font = "11px Arial";
+            ctx.font = "bold 11px Arial";
             ctx.textAlign = "center";
-            ctx.fillText(`${udlTotal.toFixed(1)} kN/m`, (spanStartX + spanEndX) / 2, udlTopY - 8);
+            ctx.fillText(`${udlTotal.toFixed(1)} kN/m`, (spanStartX + spanEndX) / 2, udlTopY - 6);
         }
 
         spanStartX = spanEndX;
     }
 
-    // ── Draw beam line ──
+    // ── Draw continuous beam line ──
     ctx.strokeStyle = "#3b82f6";
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 5;
     ctx.beginPath();
     ctx.moveTo(marginL, beamY);
     ctx.lineTo(beamEndX, beamY);
     ctx.stroke();
 
-    // ── Draw supports ──
+    // ── Draw supports & support labels ──
     let xPos = marginL;
     ctx.lineWidth = 2;
 
     for (let i = 0; i < contData.supports.length; i++) {
         const supType = contData.supports[i];
-        const label = String.fromCharCode(65 + i); // A, B, C, D...
+        const label = String.fromCharCode(65 + i);
 
         if (supType === "fixed") {
             drawFixedSupport(ctx, xPos, beamY);
@@ -1017,61 +1164,145 @@ function drawContinuousBeamDiagram(contData, loadValue) {
             drawPinnedSupport(ctx, xPos, beamY);
         }
 
-        // Label
         ctx.fillStyle = "#10b981";
         ctx.font = "bold 14px Arial";
         ctx.textAlign = "center";
-        ctx.fillText(label, xPos, beamY + 45);
+        ctx.fillText(label, xPos, beamY + 40);
 
-        // Move to next support
         if (i < contData.spans.length) {
             xPos += contData.spans[i] * scale;
         }
     }
 
-    // ── Draw span labels ──
+    // ═══════════════════════════════════════════════════
+    //  CONTINUOUS BEAM SPAN BREAKDOWN & TOTAL SPAN LINES
+    // ═══════════════════════════════════════════════════
     let xLabel = marginL;
-    ctx.fillStyle = "#e2e8f0";
-    ctx.font = "12px Arial";
-    ctx.textAlign = "center";
+    const dimY = beamY + 58;
+    const totalDimY = dimY + 30;
+    const tickH = 5;
 
     for (let i = 0; i < contData.spans.length; i++) {
         const spanPx = contData.spans[i] * scale;
-        const midX = xLabel + spanPx / 2;
+        const spanEndX = xLabel + spanPx;
 
-        // Span dimension line
-        const dimY = beamY - 70;
-        const tickH = 5; // half-height of vertical tick marks
-        ctx.strokeStyle = "#94a3b8";
-        ctx.lineWidth = 1;
+        // Collect internal load keypoints for span i
+        let ldList = spanLoads[i] || [];
+        if (!Array.isArray(ldList)) ldList = [ldList];
 
-        // Left vertical tick
-        ctx.beginPath();
-        ctx.moveTo(xLabel + 2, dimY - tickH);
-        ctx.lineTo(xLabel + 2, dimY + tickH);
-        ctx.stroke();
+        let spanPts = [0, contData.spans[i]];
+        ldList.forEach(ld => {
+            if (ld.type === "point_load") {
+                const pos = ld.a || (contData.spans[i] / 2);
+                if (pos > 0 && pos < contData.spans[i]) spanPts.push(pos);
+            }
+        });
 
-        // Dashed dimension line
-        ctx.setLineDash([4, 4]);
-        ctx.beginPath();
-        ctx.moveTo(xLabel + 2, dimY);
-        ctx.lineTo(xLabel + spanPx - 2, dimY);
-        ctx.stroke();
-        ctx.setLineDash([]);
+        spanPts.sort((a, b) => a - b);
+        let uniqueSpanPts = [];
+        spanPts.forEach(pt => {
+            if (!uniqueSpanPts.some(u => Math.abs(u - pt) < 0.01)) uniqueSpanPts.push(pt);
+        });
 
-        // Right vertical tick
-        ctx.beginPath();
-        ctx.moveTo(xLabel + spanPx - 2, dimY - tickH);
-        ctx.lineTo(xLabel + spanPx - 2, dimY + tickH);
-        ctx.stroke();
+        if (uniqueSpanPts.length > 2) {
+            // Draw segment breakdown within span i
+            ctx.strokeStyle = "#94a3b8";
+            ctx.lineWidth = 1.2;
 
-        // Span label
-        ctx.fillStyle = "#f59e0b";
-        ctx.font = "bold 12px Arial";
-        ctx.fillText(contData.spans[i] + "m", midX, dimY - 8);
+            for (let j = 0; j < uniqueSpanPts.length - 1; j++) {
+                const pt1 = uniqueSpanPts[j];
+                const pt2 = uniqueSpanPts[j + 1];
+                const x1 = xLabel + (pt1 / contData.spans[i]) * spanPx;
+                const x2 = xLabel + (pt2 / contData.spans[i]) * spanPx;
+                const segLen = pt2 - pt1;
 
-        xLabel += spanPx;
+                ctx.beginPath();
+                ctx.moveTo(x1, dimY - tickH);
+                ctx.lineTo(x1, dimY + tickH);
+                ctx.moveTo(x2, dimY - tickH);
+                ctx.lineTo(x2, dimY + tickH);
+                ctx.stroke();
+
+                ctx.setLineDash([3, 3]);
+                ctx.beginPath();
+                ctx.moveTo(x1, dimY);
+                ctx.lineTo(x2, dimY);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                ctx.fillStyle = "#cbd5e1";
+                ctx.font = "11px Arial";
+                ctx.textAlign = "center";
+                ctx.fillText(`${segLen.toFixed(1)}m`, (x1 + x2) / 2, dimY - 4);
+            }
+
+            // Draw Span total line below breakdown
+            ctx.strokeStyle = "#f59e0b";
+            ctx.lineWidth = 1.5;
+
+            ctx.beginPath();
+            ctx.moveTo(xLabel, totalDimY - tickH);
+            ctx.lineTo(xLabel, totalDimY + tickH);
+            ctx.moveTo(spanEndX, totalDimY - tickH);
+            ctx.lineTo(spanEndX, totalDimY + tickH);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(xLabel, totalDimY);
+            ctx.lineTo(spanEndX, totalDimY);
+            ctx.stroke();
+
+            ctx.fillStyle = "#f59e0b";
+            ctx.font = "bold 12px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText(`${contData.spans[i]}m`, (xLabel + spanEndX) / 2, totalDimY - 5);
+        } else {
+            // Standard single span dimension line
+            ctx.strokeStyle = "#f59e0b";
+            ctx.lineWidth = 1.5;
+
+            ctx.beginPath();
+            ctx.moveTo(xLabel, dimY - tickH);
+            ctx.lineTo(xLabel, dimY + tickH);
+            ctx.moveTo(spanEndX, dimY - tickH);
+            ctx.lineTo(spanEndX, dimY + tickH);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(xLabel, dimY);
+            ctx.lineTo(spanEndX, dimY);
+            ctx.stroke();
+
+            ctx.fillStyle = "#f59e0b";
+            ctx.font = "bold 12px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText(`${contData.spans[i]}m`, (xLabel + spanEndX) / 2, dimY - 5);
+        }
+
+        xLabel = spanEndX;
     }
+
+    // ── Draw Overall Total Continuous Beam Length Line at bottom ──
+    const overallDimY = beamY + 118;
+    ctx.strokeStyle = "#ec4899";
+    ctx.lineWidth = 1.8;
+
+    ctx.beginPath();
+    ctx.moveTo(marginL, overallDimY - tickH);
+    ctx.lineTo(marginL, overallDimY + tickH);
+    ctx.moveTo(beamEndX, overallDimY - tickH);
+    ctx.lineTo(beamEndX, overallDimY + tickH);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(marginL, overallDimY);
+    ctx.lineTo(beamEndX, overallDimY);
+    ctx.stroke();
+
+    ctx.fillStyle = "#ec4899";
+    ctx.font = "bold 12px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(`Total Continuous Length: ${totalLength.toFixed(1)}m`, (marginL + beamEndX) / 2, overallDimY - 6);
 
     // ── Support moments (show non-zero) ──
     xPos = marginL;

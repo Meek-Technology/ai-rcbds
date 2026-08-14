@@ -108,20 +108,31 @@ def extract_parameters(text):
     else:
         load_type = "udl"
 
-    # ── Legacy single-load values for backward compatibility ──
+    # ── Legacy single-load values and multi-point load extraction ──
     load_value = None
     point_load_value = 0
     load_pos = None
 
-    for ld in loads_list:
-        if ld["type"] == "udl" and load_value is None:
-            load_value = ld["w"]
-        if ld["type"] == "point_load":
-            if point_load_value == 0:
-                point_load_value = ld["P"]
-                load_pos = ld.get("a")
-            if load_value is None:
-                load_value = ld["P"]
+    # First: find UDL intensity for `load_value`
+    udl_loads = [ld for ld in loads_list if ld["type"] == "udl"]
+    if udl_loads:
+        load_value = udl_loads[0]["w"]
+
+    # Second: extract point loads array
+    point_loads = [ld for ld in loads_list if ld["type"] == "point_load"]
+    if point_loads:
+        point_load_value = point_loads[0]["P"]
+        load_pos = point_loads[0].get("a")
+
+    # If NO UDL was found, load_value is 0.0 for legacy fallback
+    if load_value is None:
+        load_value = 0.0
+
+    # Build p1, p2, p3... and a1, a2, a3... fields for multiple point loads
+    p_dict = {}
+    for idx, pl in enumerate(point_loads, 1):
+        p_dict[f"p{idx}"] = pl["P"]
+        p_dict[f"a{idx}"] = pl.get("a")
 
     # Fallback: try legacy single UDL regex if no loads found
     if not loads_list:
@@ -202,7 +213,7 @@ def extract_parameters(text):
     if beam_type == "continuous" and spans_list:
         per_span_loads = _extract_per_span_loads(text, len(spans_list))
 
-    return {
+    res = {
         "span": span_val,
         "load": load_value,
         "slab_load": float(slab_load_match.group(1)) if slab_load_match else None,
@@ -222,7 +233,11 @@ def extract_parameters(text):
         "supports": supports_list,
         "loads": loads_list if loads_list else None,
         "per_span_loads": per_span_loads,
+        "point_loads": point_loads if point_loads else None,
     }
+    # Merge p1, p2, p3... and a1, a2, a3...
+    res.update(p_dict)
+    return res
 
 
 def _extract_loads(text):
@@ -233,9 +248,11 @@ def _extract_loads(text):
     loads = []
 
     # ── Extract all point loads with positions ──
-    # Patterns: "point load 30kN at 2m", "point load of 30kN at 2m", "30kN point load at 2m"
+    # Patterns: "point load 30kN at 2m", "p1 = 25kN at 2m", "30kN point load at 2m"
     # Also: "point loads 25kN at 2m and 40kN at 6m"
     pl_patterns = [
+        # "p1 [of] 30kN at 2m" or "P1 = 30kN at 2m"
+        r'\bp\d+\s*=?\s*(\d+\.?\d*)\s*kN\s*(?:at\s+(?:distance\s+)?(\d+\.?\d*)\s*m)?',
         # "point load [of] 30kN at 2m"
         r'point\s+loads?\s*(?:of\s*)?(\d+\.?\d*)\s*kN\s*(?:at\s+(?:distance\s+)?(\d+\.?\d*)\s*m)?',
         # "30kN point load at 2m"
@@ -372,12 +389,15 @@ def _extract_per_span_loads(text, n_spans):
 def apply_defaults(params):
     if not params.get("span"):
         raise ValueError("Span is required but was not provided or could not be parsed.")
-    if not params.get("load"):
+    has_any_load = (params.get("load") is not None and params.get("load") > 0) or \
+                   (params.get("point_load") is not None and params.get("point_load") > 0) or \
+                   params.get("loads") or params.get("per_span_loads")
+    if not has_any_load:
         raise ValueError("Load is required but was not provided or could not be parsed.")
 
-    return {
+    res = {
         "span": params["span"],
-        "load": params["load"],
+        "load": params.get("load") if params.get("load") is not None else 0.0,
         "slab_load": params.get("slab_load") or 0,
         "point_load": params.get("point_load") or 0,
         "fcu": params["fcu"] if params["fcu"] else 25.0,
@@ -395,7 +415,13 @@ def apply_defaults(params):
         "supports": params.get("supports"),
         "loads": params.get("loads"),
         "per_span_loads": params.get("per_span_loads"),
+        "point_loads": params.get("point_loads"),
     }
+    # Pass through p1, p2, p3... and a1, a2, a3...
+    for k, v in params.items():
+        if (k.startswith("p") or k.startswith("a")) and k[1:].isdigit():
+            res[k] = v
+    return res
 
 
 def normalize_concrete_strength(fcu):

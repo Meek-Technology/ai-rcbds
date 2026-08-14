@@ -38,6 +38,10 @@ for i, p in enumerate(prompts, 1):
         print(f"  point_load   : {result['point_load']}")
         print(f"  overhang     : {result['overhang_length']}")
         print(f"  spans        : {result['spans']}")
+        # Show point load breakdown keys (p1, a1, p2, a2...)
+        p_keys = {k: v for k, v in result.items() if (k.startswith("p") or k.startswith("a")) and k[1:].isdigit()}
+        if p_keys:
+            print(f"  point_keys   : {p_keys}")
         print(f"  loads        : {json.dumps(result['loads'], indent=2) if result['loads'] else 'None'}")
         print(f"  per_span_loads: {json.dumps(result['per_span_loads'], indent=2) if result.get('per_span_loads') else 'None'}")
         
