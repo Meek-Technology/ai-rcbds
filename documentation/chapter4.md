@@ -1303,6 +1303,201 @@ Several issues affecting the presentation of Overhang beams were resolved:
 The system's name was officially updated to **AI-RCBDS (AI Reinforced Concrete Beam Design System)**. The PDF report headers, the calculation sheet titles, and the downloaded PDF filenames were all updated to reflect this new identity (e.g., `ai-rcbds_calc_sheet.pdf` and `ai-rcbds_results_report.pdf`).
 
 ### 4.35.2 Landing Page Overlay
+| `momentChart` | Bending Moment Diagram | Chart.js — M(x) curve |
+
+### 4.29.3 Data Flow
+
+```
+Frontend Canvas → toDataURL("image/png") → base64 string
+    ↓
+payload.diagrams_base64 = { beam_diagram, load_diagram, shear_diagram, moment_diagram }
+    ↓
+POST /download-report (JSON payload with base64 images)
+    ↓
+Backend: base64.b64decode → io.BytesIO → ReportLab Image → PDF
+```
+
+### 4.29.4 Frontend Implementation
+
+In `downloadResults()`, before sending the fetch request:
+
+1. The `beamCanvas` element is captured via `canvas.toDataURL("image/png")`
+2. The three Chart.js canvases (`loadChart`, `shearChart`, `momentChart`) are captured similarly
+3. All base64 strings are attached to the payload under `diagrams_base64`
+
+### 4.29.5 Backend Implementation
+
+In `report.py`, a new Section 9 was added:
+
+1. The `diagrams_base64` dictionary is extracted from the incoming data
+2. Each base64 string is stripped of the `data:image/png;base64,` prefix
+3. The raw bytes are decoded and wrapped in a `BytesIO` buffer
+4. The image's actual pixel dimensions are read via `ImageReader.getSize()` to determine the natural aspect ratio
+5. ReportLab's `Image` flowable is used to embed each diagram, scaled to fit the A4 page width while preserving its original aspect ratio
+6. Each diagram is labelled with its title (Beam Diagram, Load Diagram, Shear Force Diagram, Bending Moment Diagram)
+
+### 4.29.6 PDF Output
+
+The diagrams section appears as **Section 9** in the PDF, after the continuous beam analysis (if applicable) and before the footer. Each diagram is:
+- Centred on the page
+- Scaled proportionally to fit the available page width (A4 minus margins)
+- Maintains its original canvas aspect ratio so that axis labels, tick numbers, and chart text remain fully readable
+- Labelled with a descriptive title
+
+### 4.29.7 Implementation Files
+
+| File | Change |
+|---|---|
+| `api/static/script.js` | Added canvas capture logic in `downloadResults()` using `toDataURL()` |
+| `api/report.py` | Added base64 decoding, `Image` import, and Section 9 diagram rendering |
+
+
+## 4.30 Beam Diagram Visual Improvements
+
+### 4.30.1 Unified Colour Scheme
+
+All beam type diagrams (simply supported, cantilever, overhang) were updated to use the same colour palette as the continuous beam diagram, replacing the previous white-only rendering.
+
+| Element | Colour | Hex Code |
+|---|---|---|
+| Beam line | Blue | `#3b82f6` |
+| Pinned support | Green | `#10b981` |
+| Roller support | Amber | `#f59e0b` |
+| Fixed support | Red | `#ef4444` |
+| Span labels | Amber (bold) | `#f59e0b` |
+| Support labels (A, B, C) | Green (bold) | `#10b981` |
+| UDL arrows & labels | Green | `#10b981` |
+
+The `drawSupport()` function now applies per-type colouring, matching the separate `drawPinnedSupport()`, `drawRollerSupport()`, and `drawFixedSupport()` functions used by the continuous beam diagram.
+
+### 4.30.2 Continuous Beam Dimension Tick Marks
+
+The span dimension lines in the continuous beam diagram were enhanced with vertical tick marks at each boundary:
+
+- **Left tick**: Drawn at the start of each span's dashed line
+- **Right tick**: Drawn at the end of each span's dashed line
+- **Tick height**: 5px above and below the dimension line centre
+
+This makes span boundaries clearly demarcated, especially where adjacent spans share a support point.
+
+### 4.30.3 PDF Chart Diagram Improvements
+
+Two improvements were made to the Chart.js diagrams embedded in the PDF results report:
+
+1. **Dark Background**: Each Chart.js diagram (load, shear, moment) is composited onto a dark background (`#1e293b`) using Pillow before embedding. This ensures the white axis labels, tick numbers, and chart text remain fully visible on the white PDF page.
+
+2. **Spacing**: Diagram spacing was increased to 14pt between charts, providing comfortable visual separation while still fitting all three on a single A4 page.
+
+### 4.30.4 Implementation Files
+
+| File | Change |
+|---|---|
+| `api/static/script.js` | Updated `drawBeamDiagram()`, `drawSupport()` with coloured elements; added vertical ticks to `drawContinuousBeamDiagram()` |
+| `api/report.py` | Added Pillow-based dark background compositing; increased chart spacing to 14pt |
+
+
+## 4.31 Beam Design Calculation Sheet (Download Calculation Sheet)
+
+### 4.31.1 Overview
+
+A comprehensive **Beam Design Calculation Sheet** PDF was implemented, modelled after professional structural engineering software output (e.g., Orion Building Design System). When the user clicks **"Download Calculation Sheet"** from the download modal, the system generates a detailed, multi-section PDF containing all BS 8110 design calculations, embedded diagrams, and a reinforcement schedule.
+
+This replaces the previous `501 Not Implemented` placeholder on the `/download-calculation-sheet` endpoint.
+
+### 4.31.2 PDF Layout Structure
+
+The calculation sheet contains 8 sections:
+
+| Section | Content |
+|---|---|
+| 1. Header | System name, beam type, material grades (C_fcu_/Grade fy), load type |
+| 2. Beam Geometry | Beam size (b × h), span(s), support types, material properties |
+| 3. Load Breakdown | n1 (slab load), n2 (self-weight), n3 (wall load), p1 (point load), w (total UDL) |
+| 4. Diagrams | Beam diagram, Load diagram, Shear Force Diagram, Bending Moment Diagram |
+| 5. Bending Design | Full BS 8110 bending design — M, Mu, d, K, K', z, As_req, As_prov, bars |
+| 6. Shear Design | V, v, v_max, v_c, link type, stirrups description, status |
+| 7. Deflection Check | Basic span/d, fs, MF, allowable vs actual span/d, pass/fail |
+| 8. Reinforcement Schedule | Per-location bar schedule with As_req vs As_prov and OK/FAIL status |
+
+### 4.31.3 Beam Type Support
+
+| Beam Type | Bending Table | Reinforcement Schedule |
+|---|---|---|
+| Simply Supported | Single-section table (Parameter → Symbol → Value → Unit) | Main bars (bottom) + nominal top bars |
+| Cantilever | Same single-section format | Same |
+| Overhang | Same single-section format | Same |
+| Continuous | **Per-location tables**: Top Edge (hogging at supports) + Bottom Edge (sagging at spans) + Support Moments & Reactions summary | Per-location schedule with top/bottom bars at each support/span |
+
+### 4.31.4 Data Flow
+
+```
+Frontend: Generate Design → lastDesignData stored
+    ↓
+User clicks "Download Calculation Sheet"
+    ↓
+downloadCalculationSheet() captures canvas diagrams as base64 PNG
+    ↓
+POST /download-calculation-sheet (full design data + diagrams_base64)
+    ↓
+api/calc_sheet.py → generate_calc_sheet(data) → ReportLab PDF
+    ↓
+FileResponse → browser downloads "ai_beam_calc_sheet.pdf"
+```
+
+### 4.31.5 Visual Design
+
+The calculation sheet uses a professional colour palette:
+- **Header**: Dark navy background (`#1e3a5f`) with white text
+- **Section headers**: Slate grey background (`#cdd5e0`) with bold text
+- **Row labels**: Light grey background (`#e8ecf1`) for parameter names
+- **Grid**: Subtle grey borders (`#94a3b8`)
+- **Pass/Fail**: Green (`#15803d`) for OK, red (`#dc2626`) for FAIL
+- **Chart diagrams**: Dark background compositing (`#1e293b`) for readable white chart text
+
+### 4.31.6 Implementation Files
+
+| File | Change |
+|---|---|
+| `api/calc_sheet.py` | **New file** — Complete calculation sheet PDF generator with 8 sections |
+| `api/main.py` | Updated `/download-calculation-sheet` endpoint; added `generate_calc_sheet` import |
+| `api/static/script.js` | Updated `downloadCalculationSheet()` to send full data payload with diagram captures and proper DOM-based file download |
+| `api/static/index.html` | Cache bust to v17 |
+
+
+## 4.32 Custom Project Title Integration
+
+A custom project title feature was integrated to allow users to personalize the generated calculation sheets. 
+When the user clicks the "Download PDF" button, a modal prompts them for an optional "Project Title". If provided, this title is injected into the PDF generation payload and elegantly embedded at the top of the Calculation Sheet using a distinguished font colour (`#1e3a5f`), providing professional branding for specific engineering projects.
+
+
+## 4.33 Factored Wall Loading Update (BS 8110)
+
+The wall loading algorithm was corrected to adhere to standard structural engineering practices. Previously, a raw value (e.g. 2.87) was treated as density. Following engineering review, this was revised to calculate the precise **Wall Line Load** in kN/m using the formula:
+
+`Wall Line Load = Unit Weight × Thickness × Height`
+
+The system now enforces a default unit weight of 20.0 kN/m³ (representing conventional hollow block masonry) unless the user specifically overrides it in the prompt. The resulting Wall Line Load is then factored using the BS 8110 permanent load safety factor (1.4):
+
+`n3 = 1.4 × Wall Line Load`
+
+This corrected calculation is now dynamically presented in both the user interface and the exported PDF calculation sheet load breakdown.
+
+
+## 4.34 Overhang Beam Handling Improvements
+
+Several issues affecting the presentation of Overhang beams were resolved:
+
+1. **Robust Prompt Parsing**: The natural language parser (`nlp/prompt_parser.py`) was enhanced to recognize diverse overhang definitions in prompts (e.g. `overhang 2m`, `overhang of 2.5m`, `overhang: 2m`, `overhang = 2m`).
+2. **Distinct Geometry Display**: The user interface (Results panel) and the generated PDF reports were modified. Previously, the "Span" label was used generically. Now, when an overhang beam is detected, the system distinctly breaks down the total length, explicitly displaying both the main **Span** and the **Overhang Length**.
+3. **Diagram Integrity**: The Canvas beam diagram was updated to proportionally render the overhang segment when specified, preventing UI bugs where a zero or undetected overhang defaulted to a standard span rendering.
+
+
+## 4.35 Enhanced System Branding & UI
+
+### 4.35.1 AI-RCBDS Nomenclature
+The system's name was officially updated to **AI-RCBDS (AI Reinforced Concrete Beam Design System)**. The PDF report headers, the calculation sheet titles, and the downloaded PDF filenames were all updated to reflect this new identity (e.g., `ai-rcbds_calc_sheet.pdf` and `ai-rcbds_results_report.pdf`).
+
+### 4.35.2 Landing Page Overlay
 A highly immersive, premium landing page overlay was designed for the application. It features:
 - A glassmorphism background that blurs a structural engineering background image (`landing-page.webp`).
 - An animated gradient text accentuating the system title.
@@ -1310,3 +1505,34 @@ A highly immersive, premium landing page overlay was designed for the applicatio
 
 ### 4.35.3 System Favicon
 A custom favicon (`fuoye.webp`) was linked to the application to provide a professional, recognizable browser tab icon.
+
+
+## 4.36 Advanced Multi-Span Continuous Beam Solver & Three-Moment Integration
+
+### 4.36.1 Statically Indeterminate Multi-Span Analysis
+The system was upgraded to support indeterminate continuous beams of $N$-spans ($2 \le N \le 5$) with heterogeneous span lengths and boundary conditions. The calculation engine incorporates Clapeyron's Three-Moment Theorem (`rules/continuous_beam.py`), constructing a matrix linear system $[A]\{M\} = \{b\}$ to solve for exact support bending moments ($M_A, M_B, M_C, M_D$), reaction forces ($R_A, R_B, R_C, R_D$), and maximum sagging moments in each span.
+
+### 4.36.2 Support Boundary Condition Parsing
+The prompt parser (`nlp/prompt_parser.py`) was enhanced to recognize node-by-node support declarations, such as:
+- `"Support A is fixed, while B and C are roller supports"` $\rightarrow$ `["fixed", "roller", "roller"]`
+- `"Support A and D are fixed, while B and C are roller supports"` $\rightarrow$ `["fixed", "roller", "roller", "fixed"]`
+
+### 4.36.3 Midpoint Load Position Resolution
+Point loads specified at relative span locations using keywords such as `"midpoint"`, `"midspan"`, `"center"`, or `"middle"` (e.g. `"10 kN point load acts at the midpoint of BC"`) are resolved mathematically to $L/2$ relative to that specific span ($2.0\text{m}$ for span BC of length $4\text{m}$).
+
+
+## 4.37 Multi-Point Load Handling & Coordinate-Based UDL Mapping
+
+### 4.37.1 Multiple Point Load Parsing & UI Representation
+The NLP prompt parser and modal interface were updated to detect multiple point loads (`p1`, `p2`, `p3`...) and map their positions (`a1`, `a2`, `a3`...). The parameter modal dynamically expands to display individual labels (`POINT LOAD (P1)`, `LOAD POSITION (A1)`, `POINT LOAD (P2)`, `LOAD POSITION (A2)`...) alongside cumulative summary tags.
+
+### 4.37.2 Global Coordinate Range UDL Mapping
+For continuous beams specified with global coordinate ranges (e.g., `"A UDL 2 kN/m from 0 to 3m"` or `"A UDL 20 kN/m from 12m to 24m"`), the compiler calculates cumulative span boundary thresholds (`cum_spans = [(0, 12), (12, 24), (24, 28)]`) and maps the UDL load strictly to the matching span index before passing the load array to the Three-Moment Theorem solver.
+
+### 4.37.3 Load Diagram Canvas Filtering
+To maintain visual clarity, the HTML5 Canvas beam diagram renderer (`drawContinuousBeamDiagram` in `api/static/script.js`) filters out internal self-weight/dead load entries (`is_dead: True`) and renders user-applied UDLs **strictly on the span where they were applied**, preventing empty spans from incorrectly displaying self-weight UDL boxes while preserving full BS 8110 mathematical load factoring in structural analysis.
+
+
+## 4.38 Comprehensive PowerShell Terminal Testing Protocol
+
+A standardized command-line manual testing protocol was established and documented in `manual_testing_doc.md`. It provides engineers and reviewers with copy-pasteable PowerShell CLI snippets using `Invoke-RestMethod` to validate all 4 supported beam types (**Simply Supported**, **Cantilever**, **Overhang**, and **Continuous**) across `/parse`, `/predict`, and `/download-calculation-sheet` API endpoints.
