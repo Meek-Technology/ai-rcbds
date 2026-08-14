@@ -49,8 +49,8 @@ This project was developed as a Final Year Civil Engineering Research Project at
 
 1.  **Clone the Repository**:
     ```bash
-    git clone https://github.com/MEEK-Technology/ai-structural-design.git
-    cd ai-structural-design
+    git clone https://github.com/Meek-Technology/ai-rcbds.git
+    cd ai-rcbds
     ```
 
 2.  **Set Up Virtual Environment**:

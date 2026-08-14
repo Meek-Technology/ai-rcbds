@@ -535,12 +535,12 @@ function drawCharts(graphs) {
 
         plugins: {
             legend: {
-                labels: { color: "white" }
+                labels: { color: "#ffffff" }
             },
             title: {
                 display: true,
                 text: titleText,
-                color: "white"
+                color: "#ffffff"
             },
             tooltip: {
                 callbacks: {
@@ -552,11 +552,11 @@ function drawCharts(graphs) {
         },
         scales: {
             x: {
-                ticks: { color: "white" },
+                ticks: { color: "#ffffff" },
                 grid: { color: "rgba(255,255,255,0.1)" }
             },
             y: {
-                ticks: { color: "white" },
+                ticks: { color: "#ffffff" },
                 grid: { color: "rgba(255,255,255,0.1)" }
             }
         }
@@ -632,12 +632,12 @@ function drawBeamDiagram(input) {
     const canvas = document.getElementById("beamCanvas");
     if (!canvas) return;
     // Set canvas dimensions with ample vertical height for elevated loads & breakdown dimensions
-    canvas.width = 650;
+    canvas.width = 850;
     canvas.height = 280;
     const ctx = canvas.getContext("2d");
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const margin = 65;
+    const margin = 75;
     const beamY = 120;
     const startX = margin;
     const endX = canvas.width - margin;
@@ -775,7 +775,7 @@ function drawBeamDiagram(input) {
             ctx.setLineDash([]);
 
             // Segment length text
-            ctx.fillStyle = "#cbd5e1";
+            ctx.fillStyle = "#97ad02";
             ctx.font = "11px Arial";
             ctx.textAlign = "center";
             ctx.fillText(`${segLen.toFixed(1)}m`, midSegX, dimY - 4);
@@ -1038,13 +1038,13 @@ function drawContinuousBeamDiagram(contData, loadValue) {
     const ctx = canvas.getContext("2d");
 
     const totalLength = contData.spans.reduce((a, b) => a + b, 0);
-    canvas.width = Math.max(650, 120 + contData.spans.length * 170);
+    canvas.width = Math.max(850, 150 + contData.spans.length * 220);
     canvas.height = 320;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const marginL = 55;
-    const marginR = 55;
+    const marginL = 75;
+    const marginR = 75;
     const beamY = 135;
     const usableW = canvas.width - marginL - marginR;
 
@@ -1230,7 +1230,7 @@ function drawContinuousBeamDiagram(contData, loadValue) {
                 ctx.stroke();
                 ctx.setLineDash([]);
 
-                ctx.fillStyle = "#cbd5e1";
+                ctx.fillStyle = "#97ad02";
                 ctx.font = "11px Arial";
                 ctx.textAlign = "center";
                 ctx.fillText(`${segLen.toFixed(1)}m`, (x1 + x2) / 2, dimY - 4);
