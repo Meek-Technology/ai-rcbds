@@ -104,7 +104,7 @@ Export BS 8110 PDF Calculation Sheet
 ## 💻 Tech Stack & Component Classification
 
 ### Artificial Intelligence & Machine Learning
-- **Random Forest Regression**: Predicts required reinforcement steel area ($A_s$) and cross-section parameters based on 10,000+ BS 8110 compliant beam designs.
+- **Random Forest Regression**: Predicts required reinforcement steel area ($A_s$) and cross-section parameters based on 5,000+ BS 8110 compliant beam designs.
 - **Natural Language Processing (NLP)**: Regex-based deterministic parser for multi-span and multi-load natural language prompts.
 - **Scikit-Learn**: Machine learning model training, hyperparameter tuning, and serialization.
 - **NumPy & Pandas**: Matrix solver calculations, vector operations, data preprocessing, and dataset management.
@@ -133,75 +133,94 @@ Export BS 8110 PDF Calculation Sheet
 
 ### 1. Home Interface & Landing Overlay
 <p align="center">
-  <img src="screenshots/home-interface.png" alt="Home Interface" width="900">
+  <img src="documentation/readme/screenshots/home-interface.png" alt="Home Interface" width="900">
 </p>
 
 ---
 
 ### 2. Natural Language Prompt Input
 <p align="center">
-  <img src="screenshots/prompt-dialogue.png" alt="Prompt Dialogue" width="900">
+  <img src="documentation/readme/screenshots/prompt-dialogue.png" alt="Prompt Dialogue" width="900">
 </p>
 
 ---
 
 ### 3. Parameter Confirmation Modal
 <p align="center">
-  <img src="screenshots/parameter-confirmation.png" alt="Parameter Confirmation" width="900">
+  <img src="documentation/readme/screenshots/parameter-confirmation.png" alt="Parameter Confirmation" width="900">
 </p>
 
 ---
 
 ### 4. Comprehensive Design Results
 <p align="center">
-  <img src="screenshots/design-results.png" alt="Design Results" width="900">
+  <img src="documentation/readme/screenshots/design-results.png" alt="Design Results" width="900">
+</p>
+
+<p align="center">
+  <img src="documentation/readme/screenshots/design-results-1.png" alt="Design Results" width="900">
+</p>
+
+<p align="center">
+  <img src="documentation/readme/screenshots/design-results-2.png" alt="Design Results" width="900">
+</p>
+
+<p align="center">
+  <img src="documentation/readme/screenshots/design-results-3.png" alt="Design Results" width="900">
 </p>
 
 ---
 
 ### 5. Interactive HTML5 Beam Diagram
 <p align="center">
-  <img src="screenshots/beam-diagram.png" alt="Beam Diagram" width="900">
+  <img src="documentation/readme/screenshots/beam-diagram.png" alt="Beam Diagram" width="900">
 </p>
 
 ---
 
 ### 6. Load Distribution Diagram
 <p align="center">
-  <img src="screenshots/load-diagram.png" alt="Load Diagram" width="900">
+  <img src="documentation/readme/screenshots/load-diagram.png" alt="Load Diagram" width="900">
 </p>
 
 ---
 
 ### 7. Shear Force Diagram (SFD)
 <p align="center">
-  <img src="screenshots/shear-force-diagram.png" alt="Shear Force Diagram" width="900">
+  <img src="documentation/readme/screenshots/shear-force-diagram.png" alt="Shear Force Diagram" width="900">
 </p>
 
 ---
 
 ### 8. Bending Moment Diagram (BMD)
 <p align="center">
-  <img src="screenshots/bending-moment-diagram.png" alt="Bending Moment Diagram" width="900">
+  <img src="documentation/readme/screenshots/bending-moment-diagram.png" alt="Bending Moment Diagram" width="900">
 </p>
 
 ---
 
-### 9. Generated BS 8110 PDF Calculation Sheet
+### 9. Download Option Modal
 <p align="center">
-  <img src="screenshots/generated-pdf.png" alt="PDF Calculation Sheet" width="900">
+  <img src="documentation/readme/screenshots/download-options.png" alt="Download Options" width="900">
+</p>
+
+---
+
+### 10. Generated BS 8110 PDF Calculation Sheet
+<p align="center">
+  <img src="documentation/readme/screenshots/generated-pdf.png" alt="PDF Calculation Sheet" width="900">
 </p>
 <p align="center">
-  <img src="screenshots/generated-pdf-1.png" alt="PDF Calculation Sheet Page 1" width="900">
+  <img src="documentation/readme/screenshots/generated-pdf-1.png" alt="PDF Calculation Sheet Page 1" width="900">
 </p>
 <p align="center">
-  <img src="screenshots/generated-pdf-2.png" alt="PDF Calculation Sheet Page 2" width="900">
+  <img src="documentation/readme/screenshots/generated-pdf-2.png" alt="PDF Calculation Sheet Page 2" width="900">
 </p>
 <p align="center">
-  <img src="screenshots/generated-pdf-3.png" alt="PDF Calculation Sheet Page 3" width="900">
+  <img src="documentation/readme/screenshots/generated-pdf-3.png" alt="PDF Calculation Sheet Page 3" width="900">
 </p>
 <p align="center">
-  <img src="screenshots/generated-pdf-4.png" alt="PDF Calculation Sheet Page 4" width="900">
+  <img src="documentation/readme/screenshots/generated-pdf-4.png" alt="PDF Calculation Sheet Page 4" width="900">
 </p>
 
 ---
@@ -294,7 +313,7 @@ AI-RCBDS/
 `Analyze the continuous beam ABCD. Support A and D are fixed, while B and C are roller supports. Span AB = 12 m, BC = 12 m, and CD = 4 m. A UDL 20 kN/m from 12m to 24m, while a 250 kN point load acts at the midpoint of span CD.`
 
 ### 7. Continuous Beam (2 Spans with Midpoint Load & Range UDL)
-`Analyze the continuous beam ABC. Support A is fixed, while B and C are roller supports. Span AB is 3 m and span BC is 4 m. A UDL 2 kN/m from 0 to 3m, while a 10 kN point load acts at the midpoint of BC.`
+`Analyze the continuous beam ABC. Support A is fixed, while B and C are roller supports. Span AB is 3 m and span BC is 8 m. A UDL 2 kN/m from 0 to 3m, while a 10 kN point load acts at the midpoint of BC.`
 
 ### 8. Cantilever Beam
 `Cantilever beam 3m, UDL 10kN/m and point load 15kN at 3m`

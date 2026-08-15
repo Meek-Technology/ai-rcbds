@@ -1,13 +1,19 @@
 Proprietary License
 
-Copyright (c) 2026 AI-RCBDS Software Project
-
+Copyright (c) 2026 Engr. Micheal T. Shokunbi / MEEK Technology & AI-RCBDS Project.
 All rights reserved.
 
-This software and associated documentation files are the intellectual property of the author.
+This software, its source code, trained models, datasets, visual assets, and associated documentation files are the exclusive intellectual property of the author and copyright holder.
 
-This repository is made publicly available for viewing purposes only. 
-No permission is granted to use, fork, copy, modify, merge, publish, distribute, sublicense, or sell 
-any part of this software without prior written consent from the author.
+Permitted Use:
+Permission is granted to view this repository for educational, academic research, and evaluation purposes only.
 
-Unauthorized use of this code is strictly prohibited.
+Restricted Actions:
+No permission is granted to:
+- Copy, clone, or reproduce the source code, models, or assets.
+- Modify, alter, or transform any portion of the source code.
+- Redistribute, publish, sublicense, or sell the software.
+- Use the software or source code in commercial or non-commercial external projects.
+- Create derivative works based on this software system.
+
+Unauthorized copying, modification, distribution, or commercial use of this software is strictly prohibited. Prior written permission from the copyright holder is required for any usage beyond viewing this repository.
