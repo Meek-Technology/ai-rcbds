@@ -155,17 +155,11 @@ Export BS 8110 PDF Calculation Sheet
 ### 4. Comprehensive Design Results
 <p align="center">
   <img src="documentation/readme/screenshots/design-results.png" alt="Design Results" width="900">
-</p>
 
-<p align="center">
   <img src="documentation/readme/screenshots/design-results-1.png" alt="Design Results" width="900">
-</p>
 
-<p align="center">
   <img src="documentation/readme/screenshots/design-results-2.png" alt="Design Results" width="900">
-</p>
 
-<p align="center">
   <img src="documentation/readme/screenshots/design-results-3.png" alt="Design Results" width="900">
 </p>
 
@@ -199,7 +193,7 @@ Export BS 8110 PDF Calculation Sheet
 
 ---
 
-### 9. Download Option Modal
+### 9. Download Options Modal
 <p align="center">
   <img src="documentation/readme/screenshots/download-options.png" alt="Download Options" width="900">
 </p>
@@ -209,17 +203,13 @@ Export BS 8110 PDF Calculation Sheet
 ### 10. Generated BS 8110 PDF Calculation Sheet
 <p align="center">
   <img src="documentation/readme/screenshots/generated-pdf.png" alt="PDF Calculation Sheet" width="900">
-</p>
-<p align="center">
+
   <img src="documentation/readme/screenshots/generated-pdf-1.png" alt="PDF Calculation Sheet Page 1" width="900">
-</p>
-<p align="center">
+
   <img src="documentation/readme/screenshots/generated-pdf-2.png" alt="PDF Calculation Sheet Page 2" width="900">
-</p>
-<p align="center">
+
   <img src="documentation/readme/screenshots/generated-pdf-3.png" alt="PDF Calculation Sheet Page 3" width="900">
-</p>
-<p align="center">
+
   <img src="documentation/readme/screenshots/generated-pdf-4.png" alt="PDF Calculation Sheet Page 4" width="900">
 </p>
 
