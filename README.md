@@ -4,7 +4,7 @@ An intelligent web-based structural engineering application that automates the c
 
 The system enables structural engineers, educators, and students to describe complex beam design requirements in plain English, automatically extracts engineering parameters, predicts suitable beam dimensions using machine learning, performs complete BS 8110 structural design calculations, generates reinforcement detailing recommendations, renders interactive loading/SFD/BMD diagrams, and exports professional calculation sheets in PDF format.
 
-This project was developed as a Final Year Civil Engineering Research Project at **Federal University Oye-Ekiti (FUOYE)** by **Engr. Micheal T. Shokunbi** under **MEEK Technology**.
+This software system was designed and developed by **Engr. Micheal T. Shokunbi** (**MEEK Technology**) for **Adesemoye David, Abdulrasheed Nurudeen, Abdulazeez Waliy, and Abbas Jamiu** as a Final Year Research Project in the Department of Civil Engineering, **Federal University Oye-Ekiti (FUOYE)**, in partial fulfilment of the requirements for the award of the degree of **Bachelor of Engineering (B.Eng.) in Civil Engineering**.
 
 ---
 
@@ -20,10 +20,14 @@ This project was developed as a Final Year Civil Engineering Research Project at
 ![Pandas](https://img.shields.io/badge/Pandas-150458?style=for-the-badge&logo=pandas&logoColor=white)
 ![ReportLab](https://img.shields.io/badge/ReportLab-PDF-red?style=for-the-badge)
 ![BS8110](https://img.shields.io/badge/Design_Code-BS_8110-darkgreen?style=for-the-badge)
+![Git](https://img.shields.io/badge/Git-F05032?style=for-the-badge&logo=git&logoColor=white)
+![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)
+![VS Code](https://img.shields.io/badge/VS_Code-007ACC?style=for-the-badge&logo=visualstudiocode&logoColor=white)
 
 <p align="left">
   <img src="https://skillicons.dev/icons?i=python,fastapi,js,html,css,git,github,vscode" />
 </p>
+
 
 ---
 
@@ -319,8 +323,21 @@ This project demonstrates the practical application of Artificial Intelligence i
 
 ## 👤 Author & Attribution
 
+### 💻 Lead Software & AI Systems Engineer
 **Engr. Micheal T. Shokunbi**  
 *Computer Engineer | Software Engineer | AI Researcher*  
-Developed under **MEEK Technology** for the **AI Reinforced Concrete Beam Design System (AI-RCBDS)** project at **Federal University Oye-Ekiti (FUOYE)**.
+**MEEK Technology**
+
+### 🏗 Civil Engineering Research Team (FUOYE)
+- **Adesemoye David**
+- **Abdulrasheed Nurudeen**
+- **Abdulazeez Waliy**
+- **Abbas Jamiu**
+
+### 🏛 Academic Institution
+**Department of Civil Engineering**,  
+Faculty of Engineering,  
+**Federal University Oye-Ekiti (FUOYE)**, Nigeria.  
+*In partial fulfilment of the requirements for the award of the degree of Bachelor of Engineering (B.Eng.) in Civil Engineering.*
 
 ---
