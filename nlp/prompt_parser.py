@@ -37,6 +37,10 @@ def extract_parameters(text):
     thickness_match = re.search(r'(?:wall\s+)?thickness\s*(\d+\.?\d*)', text, re.IGNORECASE)
     density_match = re.search(r'(?:density|unit\s+weight)\s*(\d+\.?\d*)', text, re.IGNORECASE)
 
+    # ── Self-weight override (e.g., "ignore beam self weight", "ignore self weight", "without self weight") ──
+    ignore_sw_pattern = r'\b(?:ignore|without|no|exclude)\s+(?:beam\s+)?self[\s-]*weight\b'
+    ignore_self_weight = bool(re.search(ignore_sw_pattern, text, re.IGNORECASE))
+
     # ── Beam type ──
     beam_type_match = re.search(
         r'(simply\s+supported|cantilever|continuous|overhang(?:ing)?)',
@@ -273,6 +277,7 @@ def extract_parameters(text):
         "loads": loads_list if loads_list else None,
         "per_span_loads": per_span_loads,
         "point_loads": point_loads if point_loads else None,
+        "ignore_self_weight": ignore_self_weight,
     }
     # Merge p1, p2, p3... and a1, a2, a3...
     res.update(p_dict)
@@ -504,6 +509,7 @@ def apply_defaults(params):
         "loads": params.get("loads"),
         "per_span_loads": params.get("per_span_loads"),
         "point_loads": params.get("point_loads"),
+        "ignore_self_weight": bool(params.get("ignore_self_weight", False)),
     }
     # Pass through p1, p2, p3... and a1, a2, a3...
     for k, v in params.items():

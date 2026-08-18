@@ -102,7 +102,8 @@ function showModal(params) {
         ["support_right", "Right Support", "", false],
         ["wall_height", "Wall Height", "m", false],
         ["wall_thickness", "Wall Thickness", "m", false],
-        ["density", "Wall Unit Weight", "kN/m³", false]
+        ["density", "Wall Unit Weight", "kN/m³", false],
+        ["ignore_self_weight", "Beam Self-Weight (n2)", "", true, params.ignore_self_weight ? "Ignored (n2 = 0)" : "Included"]
     );
 
     const typeLabels = {
@@ -345,7 +346,11 @@ async function generate(prompt) {
 
         // ── Load Breakdown ──
         document.getElementById("n1").innerText = data.results.n1_slab_load + " kN/m";
-        document.getElementById("n2").innerText = data.results.n2_beam_self_weight + " kN/m";
+        if (data.results.ignore_self_weight || data.results.n2_beam_self_weight === 0) {
+            document.getElementById("n2").innerText = "0.0 kN/m (Ignored)";
+        } else {
+            document.getElementById("n2").innerText = data.results.n2_beam_self_weight + " kN/m";
+        }
         document.getElementById("n3").innerText = data.results.n3_wall_load + " kN/m";
         document.getElementById("wTotal").innerText = data.results.w_total_udl + " kN/m";
 

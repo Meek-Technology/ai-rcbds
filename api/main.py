@@ -59,6 +59,7 @@ def predict(data: dict):
     load_position = params.get("load_position")
     point_load = params.get("point_load", 0)
     overhang_length = params.get("overhang_length") or 0
+    ignore_self_weight = bool(params.get("ignore_self_weight", False))
     slab_load = 0
 
     # Extract multiple point loads list from parsed params
@@ -92,6 +93,7 @@ def predict(data: dict):
             wall_height=params.get("wall_height", 0),
             point_load=point_load,
             point_loads_list=point_loads_list,
+            ignore_self_weight=ignore_self_weight,
         )
 
         w = loads_data["w_total_udl"]
@@ -134,6 +136,7 @@ def predict(data: dict):
                 wall_height=params.get("wall_height", 0),
                 point_load=point_load,
                 point_loads_list=point_loads_list,
+                ignore_self_weight=ignore_self_weight,
             )
             w = loads_data["w_total_udl"]
             p1 = loads_data["p1_point_load"]
@@ -269,6 +272,7 @@ def predict(data: dict):
                 "w_total_udl": loads_data["w_total_udl"],
                 "p1_point_load": loads_data["p1_point_load"],
                 "all_point_loads": loads_data.get("all_point_loads", []),
+                "ignore_self_weight": ignore_self_weight,
             },
 
             "deflection": {
@@ -339,6 +343,7 @@ def predict(data: dict):
             wall_height=params.get("wall_height", 0),
             point_load=point_load,
             point_loads_list=point_loads_list,
+            ignore_self_weight=ignore_self_weight,
         )
 
         w = loads["w_total_udl"]       # Total UDL = n1 + n2 + n3
@@ -446,6 +451,7 @@ def predict(data: dict):
             "w_total_udl": loads["w_total_udl"],
             "p1_point_load": loads["p1_point_load"],
             "all_point_loads": loads.get("all_point_loads", []),
+            "ignore_self_weight": ignore_self_weight,
         },
 
         "deflection": {

@@ -59,12 +59,12 @@ def calc_wall_load(density, thickness, height):
 
 def design_loads(slab_load=0, beam_width_mm=230, beam_depth_mm=300,
                  wall_density=0, wall_thickness=0, wall_height=0,
-                 point_load=0, point_loads_list=None):
+                 point_load=0, point_loads_list=None, ignore_self_weight=False):
     """
     Calculate all factored load components per BS 8110.
 
     n1 = slab_load (provided, already factored, kN/m)
-    n2 = beam self-weight (1.4 × b × d × 24, kN/m)
+    n2 = beam self-weight (1.4 × b × d × 24, kN/m) [or 0.0 if ignore_self_weight is True]
     n3 = factored wall line load (1.4 × unit_weight × thickness × height, kN/m)
     p1 = point_load (kN) — legacy single point load
 
@@ -76,7 +76,10 @@ def design_loads(slab_load=0, beam_width_mm=230, beam_depth_mm=300,
     Returns dict with n1, n2, n3, w, p1, all_point_loads, and wall detail breakdown
     """
     n1 = slab_load
-    n2 = calc_beam_self_weight(beam_width_mm, beam_depth_mm)
+    if ignore_self_weight:
+        n2 = 0.0
+    else:
+        n2 = calc_beam_self_weight(beam_width_mm, beam_depth_mm)
 
     wall_result = calc_wall_load(wall_density, wall_thickness, wall_height)
     n3 = wall_result["n3"]

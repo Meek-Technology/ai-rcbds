@@ -113,9 +113,13 @@ def generate_pdf(data, filename="beam_report.pdf"):
     res = data.get("results", {})
     content.append(Paragraph("3. Load Breakdown", heading2))
 
+    n2_val = res.get("n2_beam_self_weight", 0)
+    ignore_sw = res.get("ignore_self_weight") or data.get("input", {}).get("ignore_self_weight") or n2_val == 0
+    n2_str = "0.0 kN/m" if ignore_sw else f"{n2_val} kN/m"
+
     load_data = [
         ["n1 — Slab Load", f"{res.get('n1_slab_load', 0)} kN/m"],
-        ["n2 — Beam Self-Weight", f"{res.get('n2_beam_self_weight', 0)} kN/m"],
+        ["n2 — Beam Self-Weight", n2_str],
     ]
 
     wall_uw = res.get("wall_unit_weight", 0)

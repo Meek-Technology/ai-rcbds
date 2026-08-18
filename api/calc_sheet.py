@@ -182,11 +182,15 @@ def generate_calc_sheet(data, filename="calc_sheet.pdf"):
     wall_ll = res.get("wall_line_load", 0)
     has_wall = wall_ht > 0 and wall_th > 0
 
+    n2_val = res.get("n2_beam_self_weight", 0)
+    ignore_sw = res.get("ignore_self_weight") or inp.get("ignore_self_weight") or n2_val == 0
+    n2_calc_str = "0.0 kN/m" if ignore_sw else f"{n2_val} kN/m"
+
     load_rows = [
         [_b("Component"), _b("Value"), _b("Component"), _b("Value")],
         ["n1 = Slab Load", f"{res.get('n1_slab_load', 0)} kN/m",
          "Wall Unit Weight", f"{wall_uw} kN/m³" if has_wall else "—"],
-        ["n2 = Beam Self Weight", f"{res.get('n2_beam_self_weight', 0)} kN/m",
+        ["n2 = Beam Self Weight", n2_calc_str,
          "Wall Thickness", f"{wall_th} m" if has_wall else "—"],
         ["n3 = Factored Wall Line Load", f"{res.get('n3_wall_load', 0)} kN/m",
          "Wall Height", f"{wall_ht} m" if has_wall else "—"],
