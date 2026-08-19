@@ -160,7 +160,10 @@ Copy and execute this script block in PowerShell to test all 4 beam types automa
 ```powershell
 $baseUrl = "http://127.0.0.1:8000"
 $prompts = @(
-    @{ Type = "Simply Supported"; Prompt = "Design a simply supported beam with span 6m, UDL 20kN/m and point load 30kN at 2m, fcu 30, fy 500" },
+    @{ Type = "Single UDL"; Prompt = "Design a simply supported beam with span 6m, UDL of 20kN/m" },
+    @{ Type = "Single Point Load"; Prompt = "Design a simply supported beam with span 6m, point load of 30kN at 3m" },
+    @{ Type = "Ignore Self-Weight"; Prompt = "Design a simply supported beam with span 6m, UDL 20kN/m, ignore beam self weight" },
+    @{ Type = "Simply Supported Multi-Load"; Prompt = "Design a simply supported beam with span 6m, UDL 20kN/m and point load 30kN at 2m, fcu 30, fy 500" },
     @{ Type = "Cantilever"; Prompt = "Cantilever beam 3m, UDL 10kN/m and point load 15kN at 3m" },
     @{ Type = "Overhang"; Prompt = "Overhang beam span 6m overhang 2m, UDL 15kN/m on span and point load 10kN at free end" },
     @{ Type = "Continuous 2-Span"; Prompt = "Analyze the continuous beam ABC. Support A is fixed, while B and C are roller supports. Span AB is 3 m and span BC is 4 m. A UDL 2 kN/m from 0 to 3m, while a 10 kN point load acts at the midpoint of BC." },
@@ -181,6 +184,7 @@ foreach ($item in $prompts) {
 
         Write-Host " [PASS] Parsed Beam Type: $($res.input.beam_type)" -ForegroundColor Green
         Write-Host " [PASS] Max Moment: $($res.results.bending_moment) kNm" -ForegroundColor Green
+        Write-Host " [PASS] Self-Weight (n2): $($res.results.n2_beam_self_weight) kN/m" -ForegroundColor Green
         Write-Host " [PASS] Recommended Reinf: $($res.reinforcement.recommended)" -ForegroundColor Green
     } catch {
         Write-Host " [FAIL] Exception: $_" -ForegroundColor Red

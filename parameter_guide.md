@@ -66,6 +66,11 @@ You can specify multiple point loads in a single beam using natural wording, ind
 Specify individual span loading using span identifiers (`span AB`, `span BC`, `first span`, `second span`):
 > `3-span continuous beam spans 5m 6m 5m, span AB UDL 20kN/m, span BC UDL 15kN/m and point load 30kN at 2m, span CD point load 25kN at 3m`
 
+### E. Beam Self-Weight Override ($n_2 = 0$)
+Instruct the system to ignore beam self-weight during calculation ($n_2 = 0.0\text{ kN/m}$):
+- **Phrases**: `ignore beam self weight`, `ignore self weight`, `without self weight`, `no self weight`, `exclude self weight`
+- **Example**: `Design a simply supported beam with span 6m, UDL 20kN/m, ignore beam self weight`
+
 ---
 
 ## 5. Support Conditions & Boundary Constraints
@@ -101,21 +106,30 @@ Append material grades or wall/slab dimensions anywhere in the prompt (usually a
 Below are standard prompts designed to test every loading style in the system:
 
 ```text
-1. Simply Supported (Combined Load):
+1. Simply Supported (Single UDL):
+   "Design a simply supported beam with span 6m, UDL of 20kN/m"
+
+2. Simply Supported (Single Point Load):
+   "Design a simply supported beam with span 6m, point load of 30kN at 3m"
+
+3. Simply Supported (Ignore Beam Self-Weight):
+   "Design a simply supported beam with span 6m, UDL 20kN/m, ignore beam self weight"
+
+4. Simply Supported (Combined Load):
    "Design a simply supported beam with span 6m, UDL 20kN/m and point load 30kN at 2m, fcu 30, fy 500"
 
-2. Simply Supported (Multiple Point Loads):
+5. Simply Supported (Multiple Point Loads):
    "Design a simply supported beam span 8m with point loads 25kN at 2m and 40kN at 6m"
 
-3. Partial UDL + Point Load:
+6. Partial UDL + Point Load:
    "Simply supported beam 5m span, UDL 15kN/m from 0 to 3m and point load 20kN at 4m"
 
-4. Overhang Beam (UDL + Free End Load):
+7. Overhang Beam (UDL + Free End Load):
    "Overhang beam span 6m overhang 2m, UDL 15kN/m on span and point load 10kN at free end"
 
-5. Continuous Beam - Prompt 1 (Fixed-Roller-Roller, Midpoint Load, Partial Range UDL):
+8. Continuous Beam - Prompt 1 (Fixed-Roller-Roller, Midpoint Load, Partial Range UDL):
    "Analyze the continuous beam ABC. Support A is fixed, while B and C are roller supports. Span AB is 3 m and span BC is 4 m. A UDL 2 kN/m from 0 to 3m, while a 10 kN point load acts at the midpoint of BC."
 
-6. Continuous Beam - Prompt 2 (Fixed-Roller-Roller-Fixed, Middle Span Coordinate UDL):
+9. Continuous Beam - Prompt 2 (Fixed-Roller-Roller-Fixed, Middle Span Coordinate UDL):
    "Analyze the continuous beam ABCD. Support A and D are fixed, while B and C are roller supports. Span AB = 12 m, BC = 12 m, and CD = 4 m. A UDL 20 kN/m from 12m to 24m, while a 250 kN point load acts at the midpoint of span CD."
 ```

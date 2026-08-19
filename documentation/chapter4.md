@@ -1536,3 +1536,22 @@ To maintain visual clarity, the HTML5 Canvas beam diagram renderer (`drawContinu
 ## 4.38 Comprehensive PowerShell Terminal Testing Protocol
 
 A standardized command-line manual testing protocol was established and documented in `manual_testing_doc.md`. It provides engineers and reviewers with copy-pasteable PowerShell CLI snippets using `Invoke-RestMethod` to validate all 4 supported beam types (**Simply Supported**, **Cantilever**, **Overhang**, and **Continuous**) across `/parse`, `/predict`, and `/download-calculation-sheet` API endpoints.
+
+
+## 4.39 Natural Language Beam Self-Weight Override ($n_2 = 0$) & System Version 2.5.1 Upgrade
+
+### 4.39.1 System Version 2.5.1 Release & API Enhancements
+The system version was officially updated to **v2.5.1** across all application metadata endpoints (`/info`, `/version`, `/example`). The `/example` endpoint was expanded to include single-load prompts (e.g. single UDL only, single point load only) and self-weight override prompts alongside multi-load continuous beam scenarios, giving users and API consumers immediate access to every loading mode supported by the NLP parser.
+
+### 4.39.2 Natural Language Self-Weight Override Parsing
+The NLP prompt parser (`nlp/prompt_parser.py`) was enhanced with a targeted regular expression pattern (`\b(?:ignore|without|no|exclude)\s+(?:beam\s+)?self[\s-]*weight\b`) to detect phrases such as `"ignore beam self weight"`, `"without self weight"`, or `"exclude self weight"`. When detected, the parser returns `"ignore_self_weight": True` in the parsed parameter dictionary.
+
+### 4.39.3 Factored Load Calculations ($n_2 = 0$)
+The design load engine (`rules/beam_design.py`) accepts the `ignore_self_weight` flag within `design_loads()`. When `ignore_self_weight` is `True`, the factored beam self-weight $n_2$ is set strictly to $0.0\text{ kN/m}$ instead of evaluating $1.4 \times b \times d \times 24$. Consequently, total UDL is evaluated as:
+$$w = n_1 + 0.0 + n_3$$
+This override propagates seamlessly through single-span and multi-span Three-Moment matrix solvers, SFD/BMD calculations, shear checks, deflection checks, and reinforcement optimization routines.
+
+### 4.39.4 UI & PDF Engineering Report Formatting
+- **Modal Confirmation**: The parsed parameter modal displays **Beam Self-Weight ($n_2$)**: `Ignored (n2 = 0)` when requested, or `Included` under default conditions.
+- **Results Display & PDF Export**: The web UI results panel, the BS 8110 summary PDF report (`api/report.py`), and the BS 8110 calculation sheet PDF (`api/calc_sheet.py`) explicitly format the self-weight load component as `0.0 kN/m` (or `Ignored`), ensuring full clarity and auditability in generated structural design reports.
+

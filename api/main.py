@@ -639,10 +639,11 @@ def system_info():
     return {
         "Project": "AI-RCBDS (AI Reinforced Concrete Beam Design System)",
         "Developed by": "Engr. Micheal Shokunbi (MEEK TECHNOLOGY)",
-        "Version": "Final Year Project - Civil Engineering - FUOYE (v2.5.0)",
+        "Version": "Final Year Project - Civil Engineering - FUOYE (v2.5.1)",
         "Features": [
             "AI Machine Learning Prediction (RandomForest + XGBoost Ensembles)",
-            "Natural Language Multi-Load Prompt Parser",
+            "Natural Language Multi-Load & Self-Weight Override Prompt Parser",
+            "Beam Self-Weight Override Support ('ignore beam self weight' / n2 = 0)",
             "Multi-Span Continuous Beam Analysis (Three-Moment Theorem)",
             "Heterogeneous & Multi-Load Combinations (UDL + Multiple Point Loads)",
             "Dynamic Diagram Rendering (SFD, BMD, Load Diagrams)",
@@ -658,8 +659,8 @@ def system_info():
 @app.get("/version")
 def version():
     return {
-        "version": "2.5.0",
-        "release": "Final Year Project - Multi-Load AI-RCBDS",
+        "version": "2.5.1",
+        "release": "Final Year Project - Multi-Load & Self-Weight Override AI-RCBDS",
         "year": 2026
     }
 
@@ -668,6 +669,22 @@ def version():
 def example_input():
     return {
         "examples": [
+            {
+                "category": "Simply Supported - Single UDL",
+                "prompt": "Design a simply supported beam with span 6m, UDL of 20kN/m"
+            },
+            {
+                "category": "Simply Supported - Single Point Load",
+                "prompt": "Design a simply supported beam with span 6m, point load of 30kN at 3m"
+            },
+            {
+                "category": "Cantilever - Single Point Load",
+                "prompt": "Design a cantilever beam with span 4m, point load of 25kN at 4m"
+            },
+            {
+                "category": "Simply Supported - Ignore Beam Self-Weight",
+                "prompt": "Design a simply supported beam with span 6m, UDL 20kN/m, ignore beam self weight"
+            },
             {
                 "category": "Simply Supported - Multi-Load",
                 "prompt": "Design a simply supported beam with span 6m, UDL 20kN/m and point load 30kN at 2m"
@@ -681,12 +698,20 @@ def example_input():
                 "prompt": "Simply supported beam 5m span, UDL 15kN/m from 0 to 3m and point load 20kN at 4m"
             },
             {
+                "category": "Overhang Beam - Single Point Load",
+                "prompt": "Overhang beam span 6m overhang 2m, point load 20kN at 8m"
+            },
+            {
                 "category": "Overhang Beam - Multi-Load",
                 "prompt": "Overhang beam span 6m overhang 2m, UDL 15kN/m on span and point load 10kN at free end"
             },
             {
                 "category": "Overhang Beam - Multiple Point Loads",
                 "prompt": "Overhang beam 5m span, 1.5m overhang, point loads 20kN at 3m and 15kN at 6.5m"
+            },
+            {
+                "category": "Continuous Beam - Single UDL (Ignore Self-Weight)",
+                "prompt": "Analyze the continuous beam ABC. Support A is fixed, while B and C are roller supports. Span AB is 3 m and span BC is 4 m. UDL 15kN/m on span AB, ignore beam self weight"
             },
             {
                 "category": "Continuous Beam - Heterogeneous Spans & Loads",
